@@ -1,0 +1,445 @@
+---
+title: "Computer Lab 2 Computational Statistics"
+author: "Phillip H??lscher"
+date: "24 1 2019"
+output: 
+  pdf_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE)
+```
+
+```{r, echo=FALSE}
+# list packages we use in this lab
+library(ggplot2)
+#install.packages("gridExtra") # to put the plots togeter
+library(gridExtra)
+```
+
+\newpage
+
+# Question 1: Optimizing a model parameter
+
+The file mortality rate.csv contains information about mortality rates of the fruit flies during a certain period.
+
+## 1. Import this file 
+to R and add one more variable LMR to the data which is the natural logarithm of Rate. Afterwards, divide the data into training and test sets by using the following code:
+
+```{r}
+# import the data
+data = read.csv2("mortality_rate.csv")
+
+# the LMR - natural logarithm of Rate
+data$LMR = log(data$Rate)
+```
+
+```{r, echo=FALSE}
+# split the data into train and test set
+n=dim(data)[1]
+set.seed(123456) 
+id=sample(1:n, floor(n*0.5)) 
+train=data[id,]
+test=data[-id,]
+```
+
+
+## 2. Write your own function myMSE() 
+that for given parameters $\lambda$ and list pars containing vectors X, Y, Xtest, Ytest fits a LOESS model with response Y and predictor X using loess() function with penalty $\lambda$ (parameter enp.target in loess()) and then predicts the model for Xtest. The function should compute the predictive MSE, print it and return as a result. The predictive MSE is the mean square error of the prediction on the testing data. It is defined by the following Equation (for you to implement):
+
+
+$$ predictive MSE =  \frac{1}{length(test)} \sum_{i th element in test set} (Ytest[i] - fYpred(X[i]))^2,  $$
+
+where fYpred(X[i]) is the predicted value of Y if X is X[i]. Read on R??s functions for prediction so that you do not have to implement it yourself.
+
+```{r}
+# the myMSE() function
+# input of the function- parameter lambda & list(vector(X, Y, Xtest, Ytest)) pars
+# list(vector(X, Y, Xtest, Ytest)) pars
+input_vector = list(X = train$Day, Y = train$LMR , Xtest = test$Day, Ytest = test$LMR)
+
+# create a counter
+counter = 0
+
+myMSE = function(lambda,pars){
+# create the model
+  model = loess(formula = pars$Y ~ pars$X,
+                enp.target = lambda)# just use enp.target or
+                #,span = 0.75) # default - smoothing parameter
+  #make the prediction
+  pred <- predict(object = model,
+                 newdata = pars$Xtest)
+  # calculate the mse
+  predictiveMSE = (1/length(pars$Ytest)) * sum((pars$Ytest - pred)^2)
+  
+  #print and return the result
+  counter <<- counter + 1
+  #print(predictiveMSE)
+  return(predictiveMSE)
+}
+```
+
+
+3. Use a simple approach: use function myMSE(), training and test sets with response LMR and predictor Day and the following $\lambda$ values to estimate the predictive MSE values: $\lambda$ = 0.1,0.2,...,40
+
+```{r}
+# initialize lambda
+lambda = seq(from = 0.1, to = 40, by = 0.1)
+
+# use the function myMSE - for all lambda values
+mse_result = c()
+for (i in 1:length(lambda)) {
+  mse_result[i] = myMSE(lambda[i], input_vector)
+}
+
+```
+
+4. Create a plot of the MSE values versus $\lambda$ and comment on which $\lambda$ value is optimal. How many evaluations of myMSE() were required (read ?optimize) to find this value?
+
+```{r, echo=FALSE}
+# the min mse value
+mse_min = min(mse_result)
+# the lamnda index of the min vlaue
+mse_min_index = which.min(mse_result)
+# the min lambda value
+lambda_optimal = lambda[mse_min_index]
+```
+
+
+The plot:
+
+```{r, echo=FALSE}
+# create the plot of the MSE values
+# data frame for the plot
+mse_plot_data = data.frame(mse_values = mse_result,
+                           lamda_values = lambda)
+
+mse_plot = ggplot(mse_plot_data, aes(x = lamda_values, y = mse_values)) +
+  geom_line(color = "red") +
+  ggtitle("MSE vs lambda - 1.4") +
+  geom_vline(xintercept = lambda_optimal, color = "blue", size = 0.5) +
+  xlab("lambda") + ylab("MSE")
+mse_plot
+```
+
+
+
+```{r, echo=FALSE}
+#create data frame with result values
+result14 = data.frame(
+  "Minumium MSE"=mse_min,
+  "Optimal lambda"=lambda_optimal,
+  "Number of evaluations"=counter)
+```
+
+```{r, echo=FALSE, eval=FALSE}
+#knitr::kable(result14)
+```
+
+This subtask is answered in section 1.6. 
+
+5. Use optimize() function for the same purpose, specify range for search [0.1,40] and the accuracy 0.01. Have the function managed to find the optimal MSE value? How many myMSE() function evaluations were required? Compare to step 4.
+
+```{r}
+# set the counter to 0
+counter = 0
+opti = optimize(f = myMSE,
+               interval = c(min(lambda),max(lambda)),
+               pars = input_vector, # specify the input for the function  pars
+               tol = 0.01) # dedired accuracy
+```
+
+```{r, echo=FALSE}
+#create data frame with result values
+result15 = data.frame(
+  "Minumium MSE"=opti$objective,
+  "Optimal lambda"=opti$minimum,
+  "Number of evaluations"=counter)
+```
+
+```{r, echo=FALSE, eval=FALSE}
+#knitr::kable(result15)
+```
+
+```{r, echo=FALSE}
+
+mse_plot2 = ggplot(mse_plot_data, aes(x = lamda_values, y = mse_values)) +
+  geom_line(color = "red") +
+  ggtitle("MSE vs lambda - 1.5 ") +
+  geom_vline(xintercept = opti$minimum, color = "green", size = 0.5) +
+  xlab("lambda") + ylab("MSE")
+```
+
+This subtask is answered in section 1.6. 
+
+6. Use optim() function and BFGS method with starting point $\lambda$ = 35 to find the optimal $\lambda$ value. How many myMSE() function evaluations were required (read ?optim)? Compare the results you obtained with the results from step 5 and make conclusions.
+
+```{r}
+#?optim()
+# set the counter to 0
+opti2 = optim(par = 35,
+              fn = myMSE,
+              method = "BFGS",
+              pars= input_vector)
+
+```
+
+```{r, echo=FALSE}
+#create data frame with result values
+result16 = data.frame(
+  "Minumium MSE"=opti2$value,
+  "Optimal lambda"=opti2$par,
+  "Number of evaluations"=opti2$counts[1])
+```
+
+```{r, echo=FALSE, eval=FALSE}
+#knitr::kable(result16)
+```
+
+```{r, echo=FALSE}
+# create a table for the result for 1.4, 1.5, 1.6
+result1 = rbind(result14,result15,result16)
+rowname = c("Result 1.4", "Result 1.5", "Result 1.6")
+rownames(result1) = rowname
+```
+
+
+```{r, echo=FALSE}
+knitr::kable(result1)
+```
+
+Above can we see the optimal mse, optimal $\lambda$ and the number of evaluations were used. 
+Since we implemented a for loop to evaluate all the lambda values, did the needed 400 evaluations to find the best value for $\lambda$. 
+At the 117 iteration did we find the min mse value. 
+
+Above can we see the results, the *optimize function* was able to find the optimal value of $\lambda$ The number of iterations the function *myMSE* needed to find the best mse is 18. 
+
+In the last run did we evaluated the interval from $\lambda$ 35 to 40. 
+The table below shows that the function *optim* evaluates just ones and found the best value of $\lambda$ in the point 35. Which is the optimal values for this specific interval, but not for the whole interval. 
+
+
+```{r, echo=FALSE}
+mse_plot3 = ggplot(mse_plot_data, aes(x = lamda_values, y = mse_values)) +
+  geom_line(color = "red") +
+  ggtitle("MSE vs lambda - range 35 to 40 - 1.6") +
+  geom_vline(xintercept = opti2$par, color = "red", size = 0.5) +
+  xlab("lambda") + ylab("MSE")
+```
+
+Plot "MSE vs $\lambda$" of task 1.4, 1.5 and 1.6 combined
+
+```{r, echo=FALSE}
+grid.arrange(mse_plot, mse_plot2, mse_plot3, nrow = 3)
+```
+
+
+# Question 2: Maximizing likelihood
+
+The file data.RData contains a sample from normal distribution with some parameters $\mu$, $\sigma$. For this question read ?optim in detail.
+
+
+## 1. Load the data to R environment.
+```{r}
+# load the data into the environment
+#data2 = load.Rdata(filename="data.Rdata")
+```
+
+## 2. Write down the log-likelihood function for 100 observations 
+and derive maximum likelihood estimators for $\mu$, $\sigma$ analytically by setting partial derivatives to zero. Use the derived formulae to obtain parameter estimates for the loaded data.
+
+```{r}
+# a blog for the maximum likelihood estimator - normal distribution
+#https://daijiang.name/en/2014/10/08/mle-normal-distribution/
+```
+
+
+The probability density function of normal distribution is:
+$$ f(x) = \frac{1}{\sigma\sqrt{2\pi}}e^{-\frac{(x-\mu)^2}{2\sigma^2}} $$
+
+100 observations - n = 100:
+$$ x_1, x_2, ..., x_n  $$
+
+The likelihood function:
+$$ f(x_1,x_2, ... , x_n\mid \mu, \sigma) = \prod_{i=1}^{n} \frac{1}{\sigma\sqrt{2\pi}}e^{-\frac{(x-\mu)^2}{2\sigma^2}} = (\frac{1}{\sigma\sqrt{2\pi}})^n e^{-\frac{1}{2\sigma^2} \sum_{i=1}^{n}(x_i - \mu)^2} $$
+
+Log-likelihood:
+$$ log(f(x_1,x_2, ... , x_n\mid \mu, \sigma)) = log((\frac{1}{\sigma\sqrt{2\pi}})^n e^{-\frac{1}{2\sigma^2} \sum_{i=1}^{n}(x_i - \mu)^2}) $$
+$$ = n log(\frac{1}{\sigma\sqrt{2\pi}})  -\frac{1}{2\sigma^2} \sum_{i=1}^{n} (x_i - \mu)^2 $$  
+
+$$ = -\frac{n}{2}log(2\pi\sigma^2) - \frac{1}{2\sigma^2}\sum_{i=1}^{n}(x_i-\mu)^2 $$
+
+Derivation of the log-likelihood - $\mu$
+Call $log(f(x_1,x_2, ... , x_n\mid \mu, \sigma))$ as $L$ 
+$$ \frac{\partial L}{\partial \mu} = - \frac{1}{\sigma 2 ^2} \sum_{i=1}^{n} (x_i - \mu) \mid \mu = 0  $$
+
+Sovle the equation:
+$$ \hat{\mu} = \overline{x} = \frac{\sum_{i=1}^{n} x_i}{n} $$
+
+
+Derivate of the log-likelihood - $\sigma$
+$$ \frac{\partial L}{\partial \sigma} = - \frac{n}{\sigma} + \sum_{i=1}^{n} (x_i - \mu)^2 \sigma ^3 = 0 $$
+
+Sovle the equation:
+$$ \hat{\sigma} =\sqrt{\frac{\sum_{i=1}^{n}(x_i - \hat{\mu})^2}{n}}$$
+
+
+```{r}
+#data
+# Use the derived formulae to obtain parameter estimates for the loaded data.
+# fromula for mu
+mu_hat =  sum(data)/length(data)
+
+# formula for sigma 
+sigma_hat = sqrt(sum(data - mu_hat)^2/length(data)) 
+```
+
+Value of $\hat{\mu}$:
+```{r, echo=FALSE}
+mu_hat
+```
+
+
+Value of $\hat{\sigma}$:
+```{r, echo=FALSE}
+sigma_hat
+```
+
+## 3. Optimize the minus log-likelihood function 
+with initial parameters $\mu$ = 0, $\sigma$ = 1. Try both Conjugate Gradient method (described in the presentation handout) and BFGS (discussed in the lecture) algorithm with gradient specified and without. Why it is a bad idea to maximize likelihood rather than maximizing log-likelihood?
+
+Negative log-likelihood:
+$$ L(y) = -log(y)  $$
+
+```{r}
+# minus loglikelihood - function
+# n - number of observations
+# version 1 - wikipedia
+minus_loglikelihood = function(paramater){
+  mu = paramater[1]
+  sigma = paramater[2]
+  n = length(data)
+  min_log = -(- (n/2) * log(2*pi*sigma^2) - (1/(2*sigma^2)) * sum((data - mu)^2))
+  return(min_log)
+}
+
+# version 2 - version from the blog
+minus_loglikelihood2 = function(paramater){
+  mu = paramater[1]
+  sigma = paramater[2]
+  n = length(data)
+  min_log = -(- (n/2) * log(2*pi) - n * log(sigma) - (1/(2*sigma^2)) * sum((data - mu)^2))
+  return(min_log)
+}
+
+# the gradient function
+gradient_function = function(parameter){
+  mu = parameter[1]
+  sigma = parameter[2]
+  n = length(data)
+  
+  minus_mu = -(sum(data)/length(data))
+  minus_sigma = -(sqrt(sum(data - mu_hat)^2/length(data)))
+  
+  return(c(minus_mu, minus_sigma))
+}
+
+```
+
+Optimize the minus log-likelihood function:
+```{r}
+# optim - prev exercise
+# opti2 = optim(par = 35,
+#               fn = myMSE,
+#               method = "BFGS",
+#               pars= input_vector)
+
+opti_BFGS = optim(par =c(0,1),
+      fn = minus_loglikelihood,
+      method = "BFGS") #quasi-Newton method
+
+opti_BFGS_gr = optim(par =c(0,1),
+      fn = minus_loglikelihood,
+      method = "BFGS",
+      gr = gradient_function)
+
+opti_CG = optim(par =c(0,1),
+      fn = minus_loglikelihood,
+      method = "CG") #conjugate gradients method
+
+opti_CG_gr = optim(par =c(0,1),
+      fn = minus_loglikelihood,
+      method = "CG",
+      gr = gradient_function) 
+
+```
+
+BGFS method without gradient method:
+```{r, echo=FALSE}
+opti_BFGS
+```
+
+BGFS method with gradient method:
+```{r, echo=FALSE}
+opti_BFGS_gr
+```
+
+Conjugate Gradient method without gradient method:
+```{r, echo=FALSE}
+opti_CG
+```
+
+Conjugate Gradient method with gradient method
+```{r, echo=FALSE}
+opti_CG_gr
+```
+
+## 4. Did the algorithms converge in all cases? 
+What were the optimal values of parameters and how many function and gradient evaluations were required for algorithms to converge? Which settings would you recommend?
+
+```{r, echo=FALSE}
+# create a vector of results
+#opti_BFGS
+opti_BFGS_vector = data.frame("BFGS", "False", opti_BFGS$convergence, opti_BFGS$par[1],opti_BFGS$par[2],opti_BFGS$counts[1],opti_BFGS$counts[2])
+#opti_BFGS_gr
+opti_BFGS_gr_vector =  data.frame("BFGS", "True", opti_BFGS_gr$convergence, opti_BFGS_gr$par[1],opti_BFGS_gr$par[2],opti_BFGS_gr$counts[1],opti_BFGS_gr$counts[2])
+#opti_CG
+opti_CG_vector =  data.frame("CG", "Flase", opti_CG$convergence, opti_CG$par[1],opti_CG$par[2],opti_CG$counts[1],opti_CG$counts[2])
+#opti_CG_gr
+opti_CG_gr_vector =  data.frame("CG", "Flase", opti_CG_gr$convergence, opti_CG_gr$par[1],opti_CG_gr$par[2],opti_CG_gr$counts[1],opti_CG_gr$counts[2])
+
+# create data frame result
+result_dataframe = data.frame(matrix(ncol = 7, nrow = 0))
+colnames_result_dataframe <- c("Method", "Gradient specified", "convergence", "optimal mu", "optimal sigma", "function evaluation", "gradient evaluation")
+colnames(result_dataframe) = colnames_result_dataframe
+
+result_dataframe = do.call(rbind.data.frame()) rbind(result_dataframe,unlist(opti_BFGS_vector))
+result_dataframe = rbind(result_dataframe,unlist(opti_BFGS_gr_vector))
+result_dataframe = rbind(result_dataframe,opti_CG_vector)
+result_dataframe = rbind(result_dataframe,opti_CG_gr_vector)
+
+
+```
+
+```{r}
+final_result_dataframe
+```
+
+
+
+```{r}
+#sources used
+#https://daijiang.name/en/2014/10/08/mle-normal-distribution/
+#https://ljvmiranda921.github.io/notebook/2017/08/13/softmax-and-the-negative-log-likelihood/#nll
+#https://en.wikipedia.org/wiki/Likelihood_function
+
+
+```
+
+\newpage
+
+Appendix
+
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+```
+
