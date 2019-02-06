@@ -398,31 +398,45 @@ opti_CG_gr
 What were the optimal values of parameters and how many function and gradient evaluations were required for algorithms to converge? Which settings would you recommend?
 
 ```{r, echo=FALSE}
-# create a vector of results
+# create a data frame of results
+# vector of the column names
+colnames_result_dataframe <- c("Method", "Gradient.specified", "convergence", "optimal.mu", "optimal.sigma", "function.evaluation", "gradient.evaluation")
+
+# create data frame for each evaluation
+
 #opti_BFGS
-opti_BFGS_vector = data.frame("BFGS", "False", opti_BFGS$convergence, opti_BFGS$par[1],opti_BFGS$par[2],opti_BFGS$counts[1],opti_BFGS$counts[2])
+# opti_BFGS_vector = data.frame("BFGS", "False", opti_BFGS$convergence, opti_BFGS$par[1],opti_BFGS$par[2],opti_BFGS$counts[1],opti_BFGS$counts[2])
+
 #opti_BFGS_gr
-opti_BFGS_gr_vector =  data.frame("BFGS", "True", opti_BFGS_gr$convergence, opti_BFGS_gr$par[1],opti_BFGS_gr$par[2],opti_BFGS_gr$counts[1],opti_BFGS_gr$counts[2])
+opti_BFGS_gr_df =  data.frame("BFGS", TRUE , opti_BFGS_gr$convergence, opti_BFGS_gr$par[1],opti_BFGS_gr$par[2],opti_BFGS_gr$counts[1],opti_BFGS_gr$counts[2])
+colnames(opti_BFGS_gr_df) = colnames_result_dataframe
+
 #opti_CG
-opti_CG_vector =  data.frame("CG", "Flase", opti_CG$convergence, opti_CG$par[1],opti_CG$par[2],opti_CG$counts[1],opti_CG$counts[2])
+opti_CG_df =  data.frame("CG", "Flase", opti_CG$convergence, opti_CG$par[1],opti_CG$par[2],opti_CG$counts[1],opti_CG$counts[2])
+colnames(opti_CG_df) = colnames_result_dataframe
+
 #opti_CG_gr
-opti_CG_gr_vector =  data.frame("CG", "Flase", opti_CG_gr$convergence, opti_CG_gr$par[1],opti_CG_gr$par[2],opti_CG_gr$counts[1],opti_CG_gr$counts[2])
+opti_CG_gr_df =  data.frame("CG", "Flase", opti_CG_gr$convergence, opti_CG_gr$par[1],opti_CG_gr$par[2],opti_CG_gr$counts[1],opti_CG_gr$counts[2])
+colnames(opti_CG_gr_df) = colnames_result_dataframe
 
-# create data frame result
-result_dataframe = data.frame(matrix(ncol = 7, nrow = 0))
-colnames_result_dataframe <- c("Method", "Gradient specified", "convergence", "optimal mu", "optimal sigma", "function evaluation", "gradient evaluation")
-colnames(result_dataframe) = colnames_result_dataframe
-
-result_dataframe = do.call(rbind.data.frame()) rbind(result_dataframe,unlist(opti_BFGS_vector))
-result_dataframe = rbind(result_dataframe,unlist(opti_BFGS_gr_vector))
-result_dataframe = rbind(result_dataframe,opti_CG_vector)
-result_dataframe = rbind(result_dataframe,opti_CG_gr_vector)
+# create data frame with values of first evaluation
+result_df = data.frame("Method" = "BFGS",
+                       "Gradient specified" = FALSE,
+                       "convergence" = opti_BFGS$convergence,
+                       "optimal mu" = opti_BFGS$par[1], 
+                       "optimal sigma"= opti_BFGS$par[2],
+                       "function evaluation" = opti_BFGS$counts[1],
+                       "gradient evaluation" = opti_BFGS$counts[2])
+# combind the data frame by row
+result_df = rbind(result_df, opti_BFGS_gr_df)
+result_df = rbind(result_df, opti_CG_df)
+result_df = rbind(result_df, opti_CG_gr_df)
 
 
 ```
 
-```{r}
-final_result_dataframe
+```{r, echo=FALSE, eval=FALSE}
+knitr::kable(result_df)
 ```
 
 
@@ -432,8 +446,6 @@ final_result_dataframe
 #https://daijiang.name/en/2014/10/08/mle-normal-distribution/
 #https://ljvmiranda921.github.io/notebook/2017/08/13/softmax-and-the-negative-log-likelihood/#nll
 #https://en.wikipedia.org/wiki/Likelihood_function
-
-
 ```
 
 \newpage
