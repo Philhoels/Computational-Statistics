@@ -1,6 +1,6 @@
 ---
 title: "Computer Lab 2 Computational Statistics"
-author: "Phillip H??lscher"
+author: "Zijie Feng (zijfe244), Phillip Hölscher (phiho267)"
 date: "24 1 2019"
 output: 
   pdf_document:
@@ -266,7 +266,7 @@ and derive maximum likelihood estimators for $\mu$, $\sigma$ analytically by set
 The probability density function (PDF) of normal distribution is:
 $$ f_X(x) = \frac{1}{\sigma\sqrt{2\pi}}e^{-\frac{(x-\mu)^2}{2\sigma^2}},\quad x\in X, $$
 
-where $X = (x_1, x_2, ..., x_n)$. The parameters $\mu$ and $\sigma$ are based on the sample $X$.
+where $X = (x_1, x_2, ..., x_{100})$. The parameters $\mu$ and $\sigma$ are based on the sample $X$.
 
 Its corresponding likelihood function:
 $$ 
@@ -412,6 +412,9 @@ result_df = rbind(result_df, opti_BFGS_gr_df)
 result_df = rbind(result_df, opti_CG_df)
 result_df = rbind(result_df, opti_CG_gr_df)
 result_df <- result_df[,c(1,2,4,5,6,7,3)]
+# vector of row names for the table
+rownames_table = c("opti_BFGS", "opti_BFGS_gr","opti_CG", "opti_CG_gr")
+rownames(result_df) = rownames_table
 
 ```
 
