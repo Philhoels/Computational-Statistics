@@ -1,0 +1,147 @@
+---
+title: "Computer Lab 3 Computational Statistics"
+author: "Phillip Hölscher"
+date: "1 2 2019"
+output: 
+  pdf_document:
+    toc: true 
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r,echo=FALSE, warning=FALSE}
+# libraries used
+rm(list=ls())
+library(ggplot2)
+#install.packages("gridExtra") # to put the plots togeter
+library(gridExtra)
+```
+
+# Question 1: Cluster sampling
+
+An opinion pool is assumed to be performed in several locations of Sweden by sending inter- viewers to this location. Of course, it is unreasonable from the financial point of view to visit each city. Instead, a decision was done to use random sampling without replacement with the probabilities proportional to the number of inhabitants of the city to select 20 cities. Explore the file population.xls. Note that names in bold are counties, not cities.
+
+
+## 1. Import necessary information to R.
+```{r}
+Sys.setlocale(locale="english")
+# set working directory
+# load the data
+data = read.csv2("population.csv")
+data[,1] <- as.character(data[,1])
+``` 
+
+## 2. Use a uniform random number generator 
+to create a function that selects 1 city from the whole list by the probability scheme offered above (do not use standard sampling functions present in R).
+
+```{r}
+# create the select city function - based on max
+selectCity = function(data){
+  # proportional to the number of inhabitants of the city
+  data$proportinalPopulation = data$Population/sum(data$Population)
+  # generate random numbers - include to dataset
+  data$rn_uniform = runif(n=nrow(data),0,1)
+  # probabilities proportional to the number of inhabitants
+  data$prob_proportinalPopulation = data$proportinalPopulation * data$rn_uniform
+  # take one city - max prob_proportinalPopulation
+  city_index = which.max(data$prob_proportinalPopulation)
+  # print(data[city_index,][1]) # make the print nicer
+  
+  return(data[city_index,1])
+}
+```
+
+## 3. Use the function you have created in step 2
+
+as follows:
+(a) Apply it to the list of all cities and select one city 
+(b) Remove this city from the list
+(c) Apply this function again to the updated list of the cities 
+(d) Remove this city from the list
+(e) . . . and so on until you get exactly 20 cities.
+
+```{r}
+# create a function to select 20 cities
+select20cities = function(data){
+  cities_remain <- data
+  selected_cities <- c()
+  for (i in 1:20) {
+  selected_city <- selectCity(cities_remain)
+  selected_cities <- c(selected_cities,selected_city)
+  cities_remain <- cities_remain[-which(cities_remain[,1]==selected_city),]
+  }
+  return(data.frame(Municipality=selected_cities))
+}
+```
+
+## 4. Run the program. 
+
+Which cities were selected? What can you say about the size of the selected cities?
+
+```{r}
+# list of all selected cities
+selected_cities <- select20cities(data)
+idx <- match(selected_cities$Municipality, data[,1])
+selected_cities$Population <- data[idx,2]
+selected_cities <- selected_cities[order(selected_cities[,2],decreasing = TRUE),]
+rownames(selected_cities) <- c()
+selected_cities
+```
+
+## 5. Plot one histogram showing the size of all cities of the country.
+Plot another histogram showing the size of the 20 selected cities. Conclusions?
+
+```{r}
+
+# histogram - 2 selected cities
+histplot_20cities = ggplot(selected_cities)+
+  geom_histogram(binwidth=10000,aes(x=Population)) +
+  ggtitle("Size of the 20 selected cities") +
+  scale_x_continuous(labels = scales::comma)
+
+histplot_cities = ggplot(data)+
+  geom_histogram(binwidth=10000,aes(x=Population)) +
+  ggtitle("Size of all cities in Sweden")+
+  scale_x_continuous(labels = scales::comma)
+
+# put the plots together
+grid.arrange(histplot_20cities, histplot_cities, ncol = 2)
+```
+
+
+
+
+# Question 2: Different distributions
+
+The double exponential (Laplace) distribution is given by formula:
+$$ DE(\mu, \alpha) = \frac{\alpha}{2}exp(-\alpha \mid x - \mu \mid) $$
+
+
+## 1. Write a code generating double exponential distribution 
+DE(0, 1) from Unif(0, 1) by using the inverse CDF method. Explain how you obtained that code step by step. Generate 10000 random numbers from this distribution, plot the histogram and comment whether the result looks reasonable.
+
+```{r}
+# generate random numbers
+x_rand = runif(10000, min = 0, max = 1)
+```
+
+```{r, warning=FALSE}
+laplace_distribution = function(mu, alpha){
+  result = alpha/2 * exp(-alpha * (abs(x_rand -  mu)))
+  return(result)
+}
+
+laplace_data = data.frame("index" = c(1:length(laplace_distribution(0,1))),
+                          "lap_data" =laplace_distribution(0,1))
+
+ggplot(data = laplace_data, aes(x= laplace_data$lap_data)) + 
+  geom_histogram()
+```
+
+
+
+## 2. Use the Acceptance/rejection method 
+with DE(0,1) as a majorizing density to generate N(0,1) variables. Explain step by step how this was done. How did you choose constant c in this method? Generate 2000 random numbers N(0,1) using your code and plot the histogram. Compute the average rejection rate R in the acceptance/rejection procedure. What is the expected rejection rate ER and how close is it to R? Generate 2000 num- bers from N (0, 1) using standard rnorm() procedure, plot the histogram and compare the obtained two histograms.
