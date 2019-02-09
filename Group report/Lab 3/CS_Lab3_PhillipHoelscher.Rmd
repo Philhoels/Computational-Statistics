@@ -1,6 +1,6 @@
 ---
 title: "Computer Lab 3 Computational Statistics"
-author: "Phillip Hölscher"
+author: "Phillip Hölscher & Zijie Feng"
 date: "1 2 2019"
 output: 
   pdf_document:
@@ -8,7 +8,8 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, out.height = "200px")
+Sys.setlocale(locale="english")
 ```
 
 
@@ -18,6 +19,7 @@ rm(list=ls())
 library(ggplot2)
 #install.packages("gridExtra") # to put the plots togeter
 library(gridExtra)
+
 ```
 
 # Question 1: Cluster sampling
@@ -27,7 +29,6 @@ An opinion pool is assumed to be performed in several locations of Sweden by sen
 
 ## 1. Import necessary information to R.
 ```{r}
-Sys.setlocale(locale="english")
 # set working directory
 # load the data
 data = read.csv2("population.csv")
@@ -112,36 +113,121 @@ grid.arrange(histplot_20cities, histplot_cities, ncol = 2)
 ```
 
 
-
+\newpage
 
 # Question 2: Different distributions
 
 The double exponential (Laplace) distribution is given by formula:
-$$ DE(\mu, \alpha) = \frac{\alpha}{2}exp(-\alpha \mid x - \mu \mid) $$
+$$ DE(\mu, \alpha) = \frac{\alpha}{2}\exp(-\alpha \mid x - \mu \mid) $$
 
+## 1. Write a code generating double exponential distribution DE(0, 1)
+from Unif(0, 1) by using the inverse CDF method. Explain how you obtained that code step by step. Generate 10000 random numbers from this distribution, plot the histogram and comment whether the result looks reasonable.
 
-## 1. Write a code generating double exponential distribution 
-DE(0, 1) from Unif(0, 1) by using the inverse CDF method. Explain how you obtained that code step by step. Generate 10000 random numbers from this distribution, plot the histogram and comment whether the result looks reasonable.
+Firstly, we create a sequence of random numbers which are uniform distributed,
+$$u\sim \rm Unif(0,1).$$
+Since the cumulative distribution function (CDF) of Laplace distribution is 
+$$F(u)=\frac{1}{2}+\frac{1}{2}\rm sgn(u-\mu)[1-\exp{(-\alpha{|u-\mu|})}],\quad u>0$$
+and the deduction
+$$P(X<y)=P(F^{-1}(u)<y)=p(u<F(y))=F(y),$$
+we can assume that $X$ statisfies 
+$$X=F^{-1}(u)=\mu-\frac{\rm{sgn}(u-0.5)}{\alpha}\ln(1-2|u-0.5|).$$ 
+Thus, we conclude that $X\sim DE(0,1)$ and thereby get a sequence $x$ following Laplace distribution by the inverse CDF function of Laplace distribution. 
 
-```{r}
+```{r }
 # generate random numbers
-x_rand = runif(10000, min = 0, max = 1)
+rm(list=ls())
+n=10000
+set.seed(12345)
+x_rand <- runif(n=n, min=0, max=1)
+data1 <- data.frame(unif=x_rand)
+ggplot(data1,aes(x=unif))+
+   geom_histogram(aes(y=..density..),
+                 colour="black",
+                 fill="white",
+                 bins=30)+
+  geom_density(alpha=.2, fill="#FF6666")
 ```
 
-```{r, warning=FALSE}
-laplace_distribution = function(mu, alpha){
-  result = alpha/2 * exp(-alpha * (abs(x_rand -  mu)))
+```{r}
+laplace_distribution = function(mu, alpha, p){
+  result <- mu-(1/alpha)*sign(p-0.5)*log(1-2*abs(p-0.5))
+  # result = alpha/2 * exp(-alpha * (abs(x_rand -  mu)))
   return(result)
 }
 
-laplace_data = data.frame("index" = c(1:length(laplace_distribution(0,1))),
-                          "lap_data" =laplace_distribution(0,1))
+data1$lap <- laplace_distribution(0,1, x_rand)
 
-ggplot(data = laplace_data, aes(x= laplace_data$lap_data)) + 
-  geom_histogram()
+ggplot(data = data1, aes(x=lap)) + 
+ geom_histogram(aes(y=..density..),
+                 colour="black",
+                 fill="white",
+                 bins=30)+
+  geom_density(alpha=.2, fill="#FF6666")
 ```
 
 
-
 ## 2. Use the Acceptance/rejection method 
-with DE(0,1) as a majorizing density to generate N(0,1) variables. Explain step by step how this was done. How did you choose constant c in this method? Generate 2000 random numbers N(0,1) using your code and plot the histogram. Compute the average rejection rate R in the acceptance/rejection procedure. What is the expected rejection rate ER and how close is it to R? Generate 2000 num- bers from N (0, 1) using standard rnorm() procedure, plot the histogram and compare the obtained two histograms.
+with DE(0,1) as a majorizing density to generate N(0,1) variables. Explain step by step how this was done. How did you choose constant c in this method? Generate 2000 random numbers N(0,1) using your code and plot the histogram. Compute the average rejection rate R in the acceptance/rejection procedure. What is the expected rejection rate ER and how close is it to R? Generate 2000 num- bers from N(0,1) using standard rnorm() procedure, plot the histogram and compare the obtained two histograms.
+
+Firstly, we treat the sequene `data1$lap` as $Y\sim f_Y$. Then we find the probability density function (PDF) of Laplace distribution DE(0,1), which is
+$$f_Y(x)=\frac{1}{2}\exp(-\mid x\mid).$$
+Meanwhile, we find the PDF of normal distribution N(0,1),
+$$f_X(x)=\frac{1}{\sqrt{2\pi}}\exp(-\frac{x^2}{2}).$$
+We want a $c$ which can let $f_Y$ cover $f_X$. Since we have
+$$\frac{f_X}{f_Y}=\sqrt{\frac{2}{\pi}}\exp(-\frac{x^2}{2}+|x|),$$
+it will get its maximum when $x=\pm 1$. So
+$$c=\max\frac{f_X}{f_Y}=\sqrt{\frac{2}{\pi}}\exp(\frac{1}{2})\approx 1.315$$
+By treating `data1$unif` as $u$, if it statisfies
+$$u_i\le\frac{f_X(Y_i)}{cf_Y(Y_i)},$$
+we would accept that $Y_i$ follows N(0,1).
+
+
+```{r}
+pdf_norm = function(x){
+  exp(-(x**2)/2)/(sqrt(2*pi))
+}
+pdf_lap = function(x){
+  (1/2)*exp(-abs(x))
+}
+
+c <- sqrt(2/pi)*exp(0.5)
+n2 <- 2000
+accept <- c()
+for (i in 1:n) {
+  if(length(accept)>=n2){
+    break()
+  }
+  u <- data1[i,1]
+  Y <- data1[i,2]
+  q <- pdf_lap(Y)
+  p <- pdf_norm(Y)
+  if(u<=p/(c*q)){
+    accept <- c(accept,Y)
+  }
+}
+data2 <- data.frame(val=accept, id="esti")
+# ggplot(data = data2, aes(x=val)) + 
+#  geom_histogram(aes(y=..density..),
+#                  colour="black",
+#                  fill="white",
+#                  bins=30)+
+#   geom_density(alpha=.2, fill="#FF6666")
+
+
+```
+
+```{r out.height="350px"}
+data3 <- data.frame(val=rnorm(n=n2,0,1),id ="real")
+data3 <- rbind(data2,data3)
+
+ggplot(data = data3, aes(x=val)) +
+ geom_histogram(aes(y=..density..),
+                 colour="black",
+                 fill="white",
+                 bins=30)+
+  geom_density(alpha=.2, fill="#FF6666")+
+  facet_grid(id~.)
+
+
+```
+
