@@ -231,3 +231,5 @@ ggplot(data = data3, aes(x=val)) +
 
 ```
 
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+```
