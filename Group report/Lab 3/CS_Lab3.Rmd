@@ -89,8 +89,13 @@ idx <- match(selected_cities$Municipality, data[,1])
 selected_cities$Population <- data[idx,2]
 selected_cities <- selected_cities[order(selected_cities[,2],decreasing = TRUE),]
 rownames(selected_cities) <- c()
-selected_cities
 ```
+
+```{r}
+knitr::kable(selected_cities)
+```
+
+The output above shows all the cities we selected, it is obvious that the cities with large population are quite easy to be selected, especially Stockholm, Goteborg and Malmo.
 
 ## 5. Plot one histogram showing the size of all cities of the country.
 Plot another histogram showing the size of the 20 selected cities. Conclusions?
@@ -109,9 +114,10 @@ histplot_cities = ggplot(data)+
   scale_x_continuous(labels = scales::comma)
 
 # put the plots together
-grid.arrange(histplot_20cities, histplot_cities, ncol = 2)
+grid.arrange(histplot_20cities, histplot_cities, ncol = 1)
 ```
 
+The population of most of Swedish cities is around (0,100000), with relatively small size compared with other big cities. Most of the cities we randomly select belong to big-size cities with huge population ($\ge 100000$), and only 7 cities' populations are smaller than 100000.
 
 \newpage
 
@@ -137,7 +143,7 @@ Thus, we conclude that $X\sim DE(0,1)$ and thereby get a sequence $x$ following 
 # generate random numbers
 rm(list=ls())
 n=10000
-set.seed(12345)
+set.seed(123456)
 x_rand <- runif(n=n, min=0, max=1)
 data1 <- data.frame(unif=x_rand)
 ggplot(data1,aes(x=unif))+
@@ -151,7 +157,6 @@ ggplot(data1,aes(x=unif))+
 ```{r}
 laplace_distribution = function(mu, alpha, p){
   result <- mu-(1/alpha)*sign(p-0.5)*log(1-2*abs(p-0.5))
-  # result = alpha/2 * exp(-alpha * (abs(x_rand -  mu)))
   return(result)
 }
 
@@ -167,20 +172,18 @@ ggplot(data = data1, aes(x=lap)) +
 
 
 ## 2. Use the Acceptance/rejection method 
-with DE(0,1) as a majorizing density to generate N(0,1) variables. Explain step by step how this was done. How did you choose constant c in this method? Generate 2000 random numbers N(0,1) using your code and plot the histogram. Compute the average rejection rate R in the acceptance/rejection procedure. What is the expected rejection rate ER and how close is it to R? Generate 2000 num- bers from N(0,1) using standard rnorm() procedure, plot the histogram and compare the obtained two histograms.
+with DE(0,1) as a majorizing density to generate N(0,1) variables. Explain step by step how this was done. How did you choose constant c in this method? Generate 2000 random numbers N(0,1) using your code and plot the histogram. Compute the average rejection rate R in the acceptance/rejection procedure. What is the expected rejection rate ER and how close is it to R? Generate 2000 numbers from N(0,1) using standard rnorm() procedure, plot the histogram and compare the obtained two histograms.
 
 Firstly, we treat the sequene `data1$lap` as $Y\sim f_Y$. Then we find the probability density function (PDF) of Laplace distribution DE(0,1), which is
 $$f_Y(x)=\frac{1}{2}\exp(-\mid x\mid).$$
 Meanwhile, we find the PDF of normal distribution N(0,1),
 $$f_X(x)=\frac{1}{\sqrt{2\pi}}\exp(-\frac{x^2}{2}).$$
-We want a $c$ which can let $f_Y$ cover $f_X$. Since we have
+We want a $c$ which is larger than $f_X/f_Y$. Since we have
 $$\frac{f_X}{f_Y}=\sqrt{\frac{2}{\pi}}\exp(-\frac{x^2}{2}+|x|),$$
 it will get its maximum when $x=\pm 1$. So
-$$c=\max\frac{f_X}{f_Y}=\sqrt{\frac{2}{\pi}}\exp(\frac{1}{2})\approx 1.315$$
-By treating `data1$unif` as $u$, if it statisfies
+$$c=\max\frac{f_X}{f_Y}=\sqrt{\frac{2}{\pi}}\exp(\frac{1}{2})\approx 1.315.$$
+By creating a sequence $u\sim\rm Unif(0,1)$, if it statisfies
 $$u_i\le\frac{f_X(Y_i)}{cf_Y(Y_i)},$$
-we would accept that $Y_i$ follows N(0,1).
-
 
 ```{r}
 pdf_norm = function(x){
@@ -193,20 +196,25 @@ pdf_lap = function(x){
 c <- sqrt(2/pi)*exp(0.5)
 n2 <- 2000
 accept <- c()
+
 for (i in 1:n) {
   if(length(accept)>=n2){
     break()
   }
-  u <- data1[i,1]
   Y <- data1[i,2]
-  q <- pdf_lap(Y)
-  p <- pdf_norm(Y)
-  if(u<=p/(c*q)){
+  u <- runif(1)
+  g <- pdf_lap(Y)
+  f <- pdf_norm(Y)
+
+  if(u<=f/(c*g)){
     accept <- c(accept,Y)
   }
 }
 data2 <- data.frame(val=accept, id="esti")
-# ggplot(data = data2, aes(x=val)) + 
+reject_rate <- 1-n2/i
+reject_rate
+1-1/c
+# ggplot(data = data2, aes(x=val)) +
 #  geom_histogram(aes(y=..density..),
 #                  colour="black",
 #                  fill="white",
@@ -215,6 +223,8 @@ data2 <- data.frame(val=accept, id="esti")
 
 
 ```
+
+The expected rejection rate should be $\rm E(R)=1/c\approx 0.24$. The real rejection rate $R$ is around 0.25, which is also close to $\rm E(R)$. The following figures are based on our estimated normal distributed variables and samples from `rnorm()` respectively. It is right that such two figures like similar mutually.
 
 ```{r out.height="350px"}
 data3 <- data.frame(val=rnorm(n=n2,0,1),id ="real")
@@ -230,6 +240,10 @@ ggplot(data = data3, aes(x=val)) +
 
 
 ```
+
+
+\newpage
+# Appendix
 
 ```{r ref.label=knitr::all_labels(), echo = T, eval = F}
 ```
