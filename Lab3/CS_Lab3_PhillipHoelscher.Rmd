@@ -32,11 +32,13 @@ An opinion pool is assumed to be performed in several locations of Sweden by sen
 ## 1. Import necessary information to R.
 ```{r}
 # set working directory
+# use code for encoding
+Sys.setlocale("LC_ALL", 'en_US.UTF-8')
+
 # load the data
 data = read.csv2("population.csv", encoding = "latin1")
-data2= data
-# use code for encoding
-# Sys.setlocale("LC_ALL", 'en_US.UTF-8')
+data[,1] <- as.character(data[,1])
+
 ``` 
 
 ## 2. Use a uniform random number generator 
@@ -55,27 +57,16 @@ selectCity = function(data){
   # proportional to the number of inhabitants of the city
   data$proportinalPopulation = data$Population/sum(data$Population)
   # generate random numbers - include to dataset
-  rn_uniform = runif(length(nrow(data)),0,1)
-  data$rn_uniform = rn_uniform
+  data$rn_uniform = runif(n=nrow(data),0,1)
   # probabilities proportional to the number of inhabitants
   data$prob_proportinalPopulation = data$proportinalPopulation * data$rn_uniform
   # take one city - max prob_proportinalPopulation
   city_index = which.max(data$prob_proportinalPopulation)
-
-  selected_city = data[city_index,][1]
-  #print(data[city_index,][1]) # make the print nicer
+  # print(data[city_index,][1]) # make the print nicer
   
-
-  # insert the selected city to the new data frame
-  selected_cities <<- rbind(selected_cities, as.data.frame(data2[city_index,]))
-  
-  # remove the selected city from the data set with the list of cites
-  city_index = city_index +counter
-  data <<- data[-city_index,]
-  
-  return(selected_cities)
+  return(data[city_index,1])
 }
-selectCity(data)
+
 
 ```
 
@@ -89,12 +80,16 @@ selectCity(data)
 ```{r}
 # create a function to select 20 cities
 select20cities = function(data){
+  cities_remain <- data
+  selected_cities <- c()
   for (i in 1:20) {
-  selectCity(data)
+  selected_city <- selectCity(cities_remain)
+  selected_cities <- c(selected_cities,selected_city)
+  cities_remain <- cities_remain[-which(cities_remain[,1]==selected_city),]
   }
-  return(selected_cities)
+  return(data.frame(Municipality=selected_cities))
 }
-select20cities(data)
+
 ```
 
 ## 4. Run the program. 
@@ -102,8 +97,17 @@ Which cities were selected? What can you say about the size of the
 selected cities?
 ```{r}
 # list of all selected cities
+selected_cities <- select20cities(data)
+idx <- match(selected_cities$Municipality, data[,1])
+selected_cities$Population <- data[idx,2]
+selected_cities <- selected_cities[order(selected_cities[,2],decreasing = TRUE),]
+rownames(selected_cities) <- c()
 selected_cities
 ```
+
+Here you can see the table with the selected cities. 
+It can be seen that mainly cities with a high population were selected. 
+
 
 ## 5. Plot one histogram showing the size of all cities of the country.
 Plot another histogram showing the size of the 20 selected cities. Conclusions?
@@ -117,7 +121,7 @@ histplot_20cities = ggplot(selected_cities, aes(selected_cities$Population))+
 ```
 
 ```{r}
-histplot_cities = ggplot(data2, aes(data2$Population))+
+histplot_cities = ggplot(data, aes(data$Population))+
   geom_histogram(binwidth=10000) +
   xlab("Population") + ggtitle("Size of all cities in Sweden")+
   scale_x_continuous(labels = scales::comma)
@@ -128,6 +132,10 @@ histplot_cities = ggplot(data2, aes(data2$Population))+
 grid.arrange(histplot_20cities, histplot_cities, ncol = 2)
 ```
 
+First of all, it can be seen that the four largest cities were selected. 
+Accordingly, it also makes sense that cities with about 100000 inhabitants were selected most frequently.
+
+\newpage
 
 # Question 2: Different distributions
 ```{r}
@@ -220,3 +228,15 @@ ggplot(data = laplace_data2, aes(x = lp_denst )) + xlab("random number") +
 
 ## 2. Use the Acceptance/rejection method 
 with DE(0,1) as a majorizing density to generate N(0,1) variables. Explain step by step how this was done. How did you choose constant c in this method? Generate 2000 random numbers N(0,1) using your code and plot the histogram. Compute the average rejection rate R in the acceptance/rejection procedure. What is the expected rejection rate ER and how close is it to R? Generate 2000 num- bers from N (0, 1) using standard rnorm() procedure, plot the histogram and compare the obtained two histograms.
+
+
+
+
+
+
+\newpage
+
+# Appendig
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+```
+
