@@ -1,6 +1,6 @@
 ---
 title: "Computer Lab 3 Computational Statistics"
-author: "Phillip Hölscher"
+author: "Phillip H??lscher"
 date: "1 2 2019"
 output: 
   pdf_document:
@@ -20,6 +20,11 @@ library(gridExtra)
 ```
 
 # Question 1: Cluster sampling
+```{r}
+# clean the environment befor starting a new exercise
+rm(list = ls())
+```
+
 
 An opinion pool is assumed to be performed in several locations of Sweden by sending inter- viewers to this location. Of course, it is unreasonable from the financial point of view to visit each city. Instead, a decision was done to use random sampling without replacement with the probabilities proportional to the number of inhabitants of the city to select 20 cities. Explore the file population.xls. Note that names in bold are counties, not cities.
 
@@ -56,6 +61,7 @@ selectCity = function(data){
   data$prob_proportinalPopulation = data$proportinalPopulation * data$rn_uniform
   # take one city - max prob_proportinalPopulation
   city_index = which.max(data$prob_proportinalPopulation)
+
   selected_city = data[city_index,][1]
   #print(data[city_index,][1]) # make the print nicer
   
@@ -64,10 +70,13 @@ selectCity = function(data){
   selected_cities <<- rbind(selected_cities, as.data.frame(data2[city_index,]))
   
   # remove the selected city from the data set with the list of cites
+  city_index = city_index +counter
   data <<- data[-city_index,]
   
   return(selected_cities)
 }
+selectCity(data)
+
 ```
 
 ## 3. Use the function you have created in step 2 as follows:
@@ -85,6 +94,7 @@ select20cities = function(data){
   }
   return(selected_cities)
 }
+select20cities(data)
 ```
 
 ## 4. Run the program. 
@@ -120,6 +130,10 @@ grid.arrange(histplot_20cities, histplot_cities, ncol = 2)
 
 
 # Question 2: Different distributions
+```{r}
+# clean the environment befor starting a new exercise
+rm(list = ls())
+```
 
 The double exponential (Laplace) distribution is given by formula:
 $$ DE(\mu, \alpha) = \frac{\alpha}{2}exp(-\alpha \mid x - \mu \mid) $$
@@ -128,22 +142,78 @@ $$ DE(\mu, \alpha) = \frac{\alpha}{2}exp(-\alpha \mid x - \mu \mid) $$
 ## 1. Write a code generating double exponential distribution 
 DE(0, 1) from Unif(0, 1) by using the inverse CDF method. Explain how you obtained that code step by step. Generate 10000 random numbers from this distribution, plot the histogram and comment whether the result looks reasonable.
 
+Cumulative distribution function of the Laplace probability distribution:
+$$ F(x) = \int_{-\infty}^{x}  f(u) \rm du  =\left\{
+\begin{array}{c l}	
+    \frac{1}{2} \rm exp(\alpha(x - \mu))  & \rm if \enspace  x < \mu\\
+     1-\frac{1}{2} \rm exp(-\alpha(x - \mu)) & \rm if \enspace x \ge \mu
+\end{array}\right.$$
+
+
+$$ = \frac{1}{2} + \frac{1}{2}sgn(x-\mu)\big( 1- \rm exp(- \alpha \mid x - \mu \mid) \big) = y  $$
+
+Case for x $x \ge \mu$:
+$$ x = \mu - \frac{1}{\alpha} \rm ln(2 - 2y)$$
+
+Case for x $x < \mu$:
+$$ x = \mu + \frac{1}{\alpha} \rm ln(2y)$$
+
+We combine into the inverse cumulative distribution function is given by:
+$$  x = \mu \rm sgn(x-\mu) \frac{1}{\alpha} \rm ln(1+sgn(x-\mu) - sgn(x-\mu) 2y) = F^{-1}(p)  $$  
+
+If we set sgn(x - $ \mu$ = sgn(y-0.5)):
+
+For x $ \ge \mu$:
+$$ 0 \leq \frac{1}{\alpha} \rm ln(2 - 2y) \Leftrightarrow  $$
+$$ y \ge \frac{1}{2}$$
+
+And for x $ < \mu$:
+$$ 0 > x - \mu = \frac{1}{\alpha} \rm ln(2y)  \Leftrightarrow $$
+
+$$ y < \frac{1}{2}  $$
+So we sgn(x - $\mu$) = sgn(y - $\frac{1}{2}$)
+
+We will change the formula to
+
+$$X=F^{-1}(u)=\mu-\frac{\rm{sgn}(u-0.5)}{\alpha}\ln(1-2|u-0.5|)$$ 
+
 ```{r}
 # generate random numbers
-x_rand = runif(10000, min = 0, max = 1)
+n = 1000
+set.seed(12345)
+x_rand = runif(n, min = 0, max = 1)
+
+# create data frame for visualization
+laplace_data = data.frame("randnom numbers" = x_rand)
+ggplot(data = laplace_data, aes(x = randnom.numbers )) + xlab("random number") +
+    geom_histogram(aes(y=..density..),
+                 colour="black",
+                 fill="white",
+                 bins=100)+
+  geom_density(alpha=.2, fill="#FF6666")
 ```
 
-```{r, warning=FALSE}
-laplace_distribution = function(mu, alpha){
-  result = alpha/2 * exp(-alpha * (abs(x_rand -  mu)))
+```{r}
+# calculate function of the inverse CDF
+inverse_laplace_distribution = function(mu, alpha, x){
+  result = mu-(1/alpha)*sign(x-0.5)*log(1-2*abs(x-0.5))
   return(result)
 }
+```
 
-laplace_data = data.frame("index" = c(1:length(laplace_distribution(0,1))),
-                          "lap_data" =laplace_distribution(0,1))
+```{r}
+# create a plot of the inverse cdf
+# DE(0,1)
+laplace_data2 = data.frame("lp_denst" = inverse_laplace_distribution(0,1,x_rand))
 
-ggplot(data = laplace_data, aes(x= laplace_data$lap_data)) + 
-  geom_histogram()
+laplace_data = data.frame("randnom numbers" = x_rand)
+ggplot(data = laplace_data2, aes(x = lp_denst )) + xlab("random number") +
+    geom_histogram(aes(y=..density..),
+                 colour="black",
+                 fill="white",
+                 bins=100)+
+  geom_density(alpha=.2, fill="#FF6666")
+
 ```
 
 
