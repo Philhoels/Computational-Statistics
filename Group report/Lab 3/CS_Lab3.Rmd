@@ -9,7 +9,7 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, out.height = "200px")
-Sys.setlocale(locale="english")
+#Sys.setlocale(locale="english")
 ```
 
 
@@ -24,14 +24,19 @@ library(gridExtra)
 
 # Question 1: Cluster sampling
 
-An opinion pool is assumed to be performed in several locations of Sweden by sending inter- viewers to this location. Of course, it is unreasonable from the financial point of view to visit each city. Instead, a decision was done to use random sampling without replacement with the probabilities proportional to the number of inhabitants of the city to select 20 cities. Explore the file population.xls. Note that names in bold are counties, not cities.
+An opinion pool is assumed to be performed in several locations of Sweden by sending interviewers to this location. Of course, it is unreasonable from the financial point of view to visit each city. Instead, a decision was done to use random sampling without replacement with the probabilities proportional to the number of inhabitants of the city to select 20 cities. Explore the file *population.xls*. Note that names in bold are counties, not cities.
 
 
 ## 1. Import necessary information to R.
-```{r}
+```{r, echo=FALSE, results='hide'}
 # set working directory
+# use code for encoding
+Sys.setlocale("LC_ALL", 'en_US.UTF-8')
+```
+
+```{r}
 # load the data
-data = read.csv2("population.csv")
+data = read.csv2("population.csv", encoding = "latin1")
 data[,1] <- as.character(data[,1])
 ``` 
 
@@ -58,11 +63,16 @@ selectCity = function(data){
 ## 3. Use the function you have created in step 2
 
 as follows:
-(a) Apply it to the list of all cities and select one city 
-(b) Remove this city from the list
-(c) Apply this function again to the updated list of the cities 
-(d) Remove this city from the list
-(e) . . . and so on until you get exactly 20 cities.
+
+- (a) Apply it to the list of all cities and select one city 
+
+- (b) Remove this city from the list
+
+- (c) Apply this function again to the updated list of the cities 
+
+- (d) Remove this city from the list
+
+- (e) . . . and so on until you get exactly 20 cities.
 
 ```{r}
 # create a function to select 20 cities
@@ -91,16 +101,16 @@ selected_cities <- selected_cities[order(selected_cities[,2],decreasing = TRUE),
 rownames(selected_cities) <- c()
 ```
 
-```{r}
+```{r, echo=FALSE}
 knitr::kable(selected_cities)
 ```
 
-The output above shows all the cities we selected, it is obvious that the cities with large population are quite easy to be selected, especially Stockholm, Goteborg and Malmo.
+The output above shows all the cities we selected, it is obvious that the cities with large population are quite easy to be selected, especially Stockholm, Goteborg, Malmo and Uppsala. This can be seen in a later visualization.
 
 ## 5. Plot one histogram showing the size of all cities of the country.
 Plot another histogram showing the size of the 20 selected cities. Conclusions?
 
-```{r}
+```{r, echo=FALSE}
 
 # histogram - 2 selected cities
 histplot_20cities = ggplot(selected_cities)+
@@ -112,16 +122,25 @@ histplot_cities = ggplot(data)+
   geom_histogram(binwidth=10000,aes(x=Population)) +
   ggtitle("Size of all cities in Sweden")+
   scale_x_continuous(labels = scales::comma)
+```
 
+```{r, echo=FALSE, out.height="350px"}
 # put the plots together
 grid.arrange(histplot_20cities, histplot_cities, ncol = 1)
 ```
+
 
 The population of most of Swedish cities is around (0,100000), with relatively small size compared with other big cities. Most of the cities we randomly select belong to big-size cities with huge population ($\ge 100000$), and only 7 cities' populations are smaller than 100000.
 
 \newpage
 
 # Question 2: Different distributions
+
+```{r, echo=FALSE}
+# clean environment
+rm(list=ls())
+```
+
 
 The double exponential (Laplace) distribution is given by formula:
 $$ DE(\mu, \alpha) = \frac{\alpha}{2}\exp(-\alpha \mid x - \mu \mid) $$
@@ -131,23 +150,31 @@ from Unif(0, 1) by using the inverse CDF method. Explain how you obtained that c
 
 Firstly, we create a sequence of random numbers which are uniform distributed,
 $$u\sim \rm Unif(0,1).$$
+
 Since the cumulative distribution function (CDF) of Laplace distribution $Y$ is 
 $$F_{DE}(x)=\frac{1}{2}+\frac{1}{2}\rm sgn(x-\mu_{DE})[1-\exp{(-\alpha{|x-\mu_{DE}|})}]=y$$
+
 and the deduction
 $$P[F^{-1}_Y(u)\le y]=P[u\le F_Y(y)]=F_U[F_Y(y)]=F_Y(y),$$
+
 We combine the duduction and $u$ into the inverse CDF of DE(0,1), and we thereby get such formula as
 $$  F^{-1}_{DE}(u) = \mu_{DE}-  \frac{\rm sgn(u-\mu_{Unif})}{\alpha} \ln[1+sgn(u-\mu_{\rm Unif}) - sgn(u-\mu_{\rm Unif}) 2u].$$
+
 Substituting $\mu_{\rm Unif}=0.5$ into the formula,
 $$Y=F^{-1}_{DE}(u)=\mu_{DE}-\frac{\rm{sgn}(u-0.5)}{\alpha}\ln(1-2|u-0.5|).$$ 
+
 Thus, we conclude that $Y\sim DE(0,1)$ and thereby get a sequence $y$ following Laplace distribution by the inverse CDF function of Laplace distribution. 
 
-```{r }
+```{r}
 # generate random numbers
-rm(list=ls())
 n=10000
 set.seed(123456)
 x_rand <- runif(n=n, min=0, max=1)
 data1 <- data.frame(unif=x_rand)
+```
+
+
+```{r, echo=FALSE, eval=FALSE}
 ggplot(data1,aes(x=unif))+
    geom_histogram(aes(y=..density..),
                  colour="black",
@@ -157,12 +184,17 @@ ggplot(data1,aes(x=unif))+
 ```
 
 ```{r}
+# the inverse laplace with mu = 0.5
 laplace_distribution = function(mu, alpha, p){
   # result <- mu-(1/alpha)*sign(p-0.5)*log(1-2*abs(p-0.5))
   result <- mu-sign(p-0.5)*1/alpha*log(1+sign(p-0.5)-sign(p-0.5)*2*p)
   return(result)
 }
 
+```
+
+
+```{r, echo=FALSE, out.height="275px"}
 data1$lap <- laplace_distribution(0,1, x_rand)
 
 ggplot(data = data1, aes(x=lap)) + 
@@ -215,16 +247,16 @@ for (i in 1:n) {
 }
 data2 <- data.frame(val=accept, id="esti")
 reject_rate <- 1-n2/i
+```
+
+ejection rate *R*
+```{r, echo=FALSE}
 reject_rate
+```
+
+Rejection rate E(R):
+```{r}
 1-1/c
-# ggplot(data = data2, aes(x=val)) +
-#  geom_histogram(aes(y=..density..),
-#                  colour="black",
-#                  fill="white",
-#                  bins=30)+
-#   geom_density(alpha=.2, fill="#FF6666")
-
-
 ```
 
 The expected rejection rate should be $\rm E(R)=1/c\approx 0.24$. The real rejection rate $R$ is around 0.25, which is also close to $\rm E(R)$. The following figures are based on our estimated normal distributed variables and samples from `rnorm()` respectively. It is right that such two figures like similar mutually.
