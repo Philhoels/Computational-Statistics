@@ -131,13 +131,15 @@ from Unif(0, 1) by using the inverse CDF method. Explain how you obtained that c
 
 Firstly, we create a sequence of random numbers which are uniform distributed,
 $$u\sim \rm Unif(0,1).$$
-Since the cumulative distribution function (CDF) of Laplace distribution is 
-$$F(u)=\frac{1}{2}+\frac{1}{2}\rm sgn(u-\mu)[1-\exp{(-\alpha{|u-\mu|})}],\quad u>0$$
+Since the cumulative distribution function (CDF) of Laplace distribution $Y$ is 
+$$F_{DE}(x)=\frac{1}{2}+\frac{1}{2}\rm sgn(x-\mu_{DE})[1-\exp{(-\alpha{|x-\mu_{DE}|})}]=y$$
 and the deduction
-$$P(X<y)=P(F^{-1}(u)<y)=p(u<F(y))=F(y),$$
-we can assume that $X$ statisfies 
-$$X=F^{-1}(u)=\mu-\frac{\rm{sgn}(u-0.5)}{\alpha}\ln(1-2|u-0.5|).$$ 
-Thus, we conclude that $X\sim DE(0,1)$ and thereby get a sequence $x$ following Laplace distribution by the inverse CDF function of Laplace distribution. 
+$$P[F^{-1}_Y(u)\le y]=P[u\le F_Y(y)]=F_U[F_Y(y)]=F_Y(y),$$
+We combine the duduction and $u$ into the inverse CDF of DE(0,1), and we thereby get such formula as
+$$  F^{-1}_{DE}(u) = \mu_{DE}-  \frac{\rm sgn(u-\mu_{Unif})}{\alpha} \ln[1+sgn(u-\mu_{\rm Unif}) - sgn(u-\mu_{\rm Unif}) 2u].$$
+Substituting $\mu_{\rm Unif}=0.5$ into the formula,
+$$Y=F^{-1}_{DE}(u)=\mu_{DE}-\frac{\rm{sgn}(u-0.5)}{\alpha}\ln(1-2|u-0.5|).$$ 
+Thus, we conclude that $Y\sim DE(0,1)$ and thereby get a sequence $y$ following Laplace distribution by the inverse CDF function of Laplace distribution. 
 
 ```{r }
 # generate random numbers
@@ -156,7 +158,8 @@ ggplot(data1,aes(x=unif))+
 
 ```{r}
 laplace_distribution = function(mu, alpha, p){
-  result <- mu-(1/alpha)*sign(p-0.5)*log(1-2*abs(p-0.5))
+  # result <- mu-(1/alpha)*sign(p-0.5)*log(1-2*abs(p-0.5))
+  result <- mu-sign(p-0.5)*1/alpha*log(1+sign(p-0.5)-sign(p-0.5)*2*p)
   return(result)
 }
 
