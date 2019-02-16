@@ -9,9 +9,17 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r}
+```{r, echo=FALSE}
 # libraries used in this lab
 library(ggplot2)
+# install.packages("coda")
+library(coda)
+```
+
+```{r, echo=FALSE}
+# infromation & marterial
+# vey nice blog - MCMC and the Metropolis–Hastings algorithm
+#https://blog.stata.com/2016/11/15/introduction-to-bayesian-statistics-part-2-mcmc-and-the-metropolis-hastings-algorithm/
 ```
 
 
@@ -47,12 +55,14 @@ t_max = 1000
 i = 1 # interations
 x_0 = c(1) # starting point
 x_t = rep(x_0,t_max) # vector to save y or x_t
+
+# algorithm from the slide
 while (t < t_max) {
   y = rlnorm(n = 1,meanlog = x_t[i],sdlog = 1)
   u = runif(1,0,1)
   q_x_t = dlnorm(x =x_t[i],meanlog = y,sdlog = 1) # take the density
   q_y  = dlnorm(x = y, meanlog =  x_t[i], sdlog = 1)
-  alpha = ((pdf(y) * q_x_t)/ (pdf(x_t[i])*q_y))
+  alpha = ((pdf(y) * q_x_t)/ (pdf(x_t[i])*q_y)) # before we can calculate alpha do we need to define q_x_t & q_y
   if(u < alpha){
     x_t[i+1] = y
   } else{
@@ -62,8 +72,10 @@ while (t < t_max) {
   i = i +1
   t = t+1
 }
+```
 
-# # code from the lecture slide 14
+```{r, echo=FALSE}
+# # code from the lecture slide 14 ---
 # f.MCMC.MH<-function(nstep,X0,props){
 #     vN<-1:nstep
 #     vX<-rep(X0,nstep);
@@ -87,17 +99,124 @@ while (t < t_max) {
 
 ```
 
-```{r}
+
+```{r, echo=FALSE}
 # create time series plot 
 # create plot data
 plot_data_1_1 = data.frame(x_t)
-
-ggplot(data = plot_data_1_1, aes(x = 1:length(x_t), y = x_t)) +
+# create the plot object
+plot_1_1 = ggplot(data = plot_data_1_1, aes(x = 1:length(x_t), y = x_t)) +
   geom_line() + ggtitle("Metropolis-Hastings Sampler") + ylab("x(t)") + xlab("i")
-
+plot_1_1
 ```
 
 2. Perform Step 1 by using the chi–square distribution $\chi^2$ $(\lfloor X_t + 1\rfloor)$ as a proposal distribution, where$\lfloor x \rfloor$ is the floor function, meaning the integer part of x for positive x, i.e.$\lfloor 2.95 \rfloor = 2$
+
+```{r,echo=FALSE}
+# Metropolis-Hastings Sampler
+set.seed(12345)
+
+# Initilize chain to X_0, t=0
+t = 1
+t_max = 1000
+i = 1 # interations
+x_0 = c(1) # starting point
+x_t2 = rep(x_0,t_max) # vector to save y or x_t
+# ...
+```
+
+
+```{r}
+# show this part in the report
+# ...
+while (t < t_max) {
+  y =  rchisq(n = 1, df = floor(x_t2[i] +1)) # floor function x & x_t +1
+  u = runif(1,0,1)
+  q_x_t = dchisq(x = x_t2[i],df = floor(x_t2[i] +1)) # take the density
+  q_y  = dchisq(x = y, df = floor(x_t2[i]+1))
+  alpha = ((pdf(y) * q_x_t)/ (pdf(x_t[i])*q_y))
+  if(u < alpha){
+    x_t2[i+1] = y
+  } else{
+    #ii = i -1 # change this to x_t (don´t work with x_t+1 - so use value x_t-1)
+    x_t2[i+1] = x_t2[i] 
+  }
+  i = i +1
+  t = t+1
+}
+```
+```{r, echo=FALSE}
+# create the plot
+plot_data_1_2 = data.frame(x_t2)
+
+ggplot(data = plot_data_1_2, aes(x = 1:length(x_t), y = x_t2)) +
+  geom_line() + ggtitle("Metropolis-Hastings Sampler") + ylab("x(t)") + xlab("i")
+```
+
+## 4. Generate 10 MCMC sequences 
+using the generator from Step 2 and starting points 1, 2, . . . , or 10. Use the Gelman–Rubin method to analyze convergence of these sequences.
+
+```{r}
+# have to create 10 MCMC sequences - of step 2
+# create a vector of a starting points 1,..,10
+starting_pints = seq(from = 1, to = 10, by = 1)
+
+# run step 2 with every starting point
+t_max = 1000 # number of max iterations
+# create a data frame to save the values
+MCMC_10seq = data.frame(matrix(nrow = t_max, ncol = length(starting_pints)))
+
+# run step 2 - 10 times
+for (j in 1:length(starting_pints)) {
+  set.seed(12345)
+# Initilize chain to X_0, t=0
+t = 1
+
+i = 1 # interations
+x_0 = starting_pints[j] # starting point
+x_t4 = rep(x_0,t_max) # vector to save y or x_t
+
+while (t < t_max) {
+  y =  rchisq(n = 1, df = floor(x_t4[i] +1)) # floor function x & x_t +1
+  u = runif(1,0,1)
+  q_x_t = dchisq(x = x_t4[i],df = floor(x_t4[i] +1)) # take the density
+  q_y  = dchisq(x = y, df = floor(x_t4[i]+1))
+  alpha = ((pdf(y) * q_x_t)/ (pdf(x_t[i])*q_y))
+  if(u < alpha){
+    x_t4[i+1] = y
+  } else{
+    #ii = i -1 # change this to x_t (don´t work with x_t+1 - so use value x_t-1)
+    x_t4[i+1] = x_t4[i] 
+  }
+  i = i +1
+  t = t+1
+}
+MCMC_10seq[,j] = x_t4
+}
+# change colnames of the data frame
+data_colnames = c()
+for (i in 1:length(MCMC_10seq)) {
+  data_colnames[i] = paste("MCMC", i)
+}
+colnames(MCMC_10seq) = data_colnames
+#MCMC_10seq
+
+# Gelman–Rubin method
+#?coda::gelman.diag
+# convert to mcmc.list object
+MCMC_10seq_test = as.list(MCMC_10seq)
+MCMC_10seq_test2 = mcmc.list()
+MCMC_10seq_test2 = as.mcmc(MCMC_10seq[1]) 
+
+gelman.diag(MCMC_10seq_test2)
+
+```
+
+
+
+3. Compare the results of Steps 1 and 2 and make conclusions.
+
+
 
 # Question 2: Gibbs sampling
 
