@@ -1,0 +1,420 @@
+---
+title: "Computer Lab 4 Computational Statistics"
+author: "Phillip Hölscher"
+date: "8 2 2019"
+output: 
+  pdf_document:
+    toc: true 
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+\newpage
+
+```{r, echo=FALSE}
+# libraries used in this lab
+library(ggplot2)
+# install.packages("coda")
+library(coda)
+library(gridExtra)
+```
+
+```{r, echo=FALSE}
+# infromation & marterial
+# vey nice blog - MCMC and the Metropolis–Hastings algorithm
+#https://blog.stata.com/2016/11/15/introduction-to-bayesian-statistics-part-2-mcmc-and-the-metropolis-hastings-algorithm/
+```
+
+
+# Question 1: Computations with Metropolis-Hastings
+
+Consider the following probability density function:
+
+$$f(x)\ \alpha \ x^5\  e^{-x},\ x>0$$
+
+You can see that the distribution is known up to some constant of proportionality. If you are interested (NOT part of the Lab) this constant can be found by applying integration by parts multiple times and equals 120.
+
+##1. Use Metropolis–Hastings algorithm 
+to generate samples from this distribution by using proposal distribution as log–normal $\rm LN(X_t,1)$, take some starting point. Plot the chain you obtained as a time series plot. What can you guess about the convergence of the chain? If there is a burn–in period, what can be the size of this period?
+
+```{r}
+#pdf -  probability density function 
+pdf = function(x){
+  if(x<= 0){
+    stop("x needs to be bigger than 0")
+  }
+  # stopifnot(x>0) # check - x >0
+  return(x^5 * exp(-x))
+}
+```
+
+
+Below you can see the code for the Metropolis-Hastings algorithm. 
+We decided to initialize the starting point ($X_o$) with 1 and use 10000 for *t*, as max iterations. 
+```{r}
+# Metropolis-Hastings Sampler
+set.seed(123456)
+# Initilize chain to X_0, t=0
+t = 1
+t_max = 10000
+i = 1 # interations
+x_0 = c(1) # starting point
+x_t = rep(x_0,t_max) # vector to save y or x_t
+
+# algorithm from the slide
+while (t < t_max) {
+  y = rlnorm(n = 1, meanlog = x_t[i], sdlog = 1)
+  u = runif(1,0,1)
+  q_x_t = dlnorm(x =x_t[i],meanlog = y, sdlog = 1) # take the density
+  q_y  = dlnorm(x = y, meanlog =  x_t[i], sdlog = 1)
+  alpha = ((pdf(y) * q_x_t)/ (pdf(x_t[i])*q_y)) # before we can calculate alpha do we need to define q_x_t & q_y
+  if(u < alpha){
+    x_t[i+1] = y
+  } else{
+    #ii = i -1 # change this to x_t (don´t work with x_t+1 - so use value x_t-1)
+    x_t[i+1] = x_t[i] 
+  }
+  i = i +1
+  t = t+1
+}
+```
+
+```{r, echo=FALSE, eval=FALSE}
+# code from the lecture slide 14 ---
+f.MCMC.MH<-function(nstep,X0,props){
+    vN<-1:nstep
+    vX<-rep(X0,nstep);
+    for (i in 2:nstep){
+	X<-vX[i-1]
+	Y<-rnorm(1,mean=X,sd=props)
+	u<-runif(1)
+	a<-min(c(1,(dnorm(Y)*dnorm(X,mean=Y,sd=props))/(dnorm(X)*dnorm(Y,mean=X,sd=props))))
+	if (u <=a){
+	  vX[i]<-Y
+	  }
+	else{
+	  vX[i]<-X
+	  }
+    }
+    plot(vN,vX,pch=19,cex=0.3,col="black",xlab="t",ylab="X(t)",main="",ylim=c(min(X0-0.5,-5),max(5,X0+0.5)))
+    abline(h=0)
+    abline(h=1.96)
+    abline(h=-1.96)
+}
+
+```
+
+ Plot of the chain obtained as a time series plot:
+```{r, echo=FALSE}
+# create time series plot 
+# create plot data
+plot_data_1_1 = data.frame(x_t)
+# create the plot object
+plot_1_1 = ggplot(data = plot_data_1_1, aes(x = 1:length(x_t), y = x_t)) +
+  geom_line() + ggtitle("Metropolis-Hastings Sampler") + ylab("x(t)") + xlab("t")
+plot_1_1
+```
+
+In this exercise the course of the time series is irregular. This implies the chain never converges, that why there is not burn-in period to analyze.
+
+
+## 2. Perform Step 1 by using the chi–square distribution 
+$\chi^2$ $(\lfloor X_t + 1\rfloor)$ as a proposal distribution, where$\lfloor x \rfloor$ is the floor function, meaning the integer part of x for positive x, i.e.$\lfloor 2.95 \rfloor = 2$
+
+```{r,echo=FALSE}
+# Metropolis-Hastings Sampler
+set.seed(123456)
+
+# Initilize chain to X_0, t=0
+t = 1
+t_max = 10000
+i = 1 # interations
+x_0 = c(1) # starting point
+x_t2 = rep(x_0,t_max) # vector to save y or x_t
+# ...
+```
+
+Metropolis–Hastings algorithm with chi-square as proposal distribution
+```{r}
+# show this part in the report
+# ...
+while (t < t_max) {
+  y =  rchisq(n = 1, df = floor(x_t2[i] +1)) # floor function x & x_t +1
+  u = runif(1,0,1)
+  q_x_t = dchisq(x = x_t2[i],df = floor(x_t2[i] +1)) # take the density
+  q_y  = dchisq(x = y, df = floor(x_t2[i]+1))
+  alpha = ((pdf(y) * q_x_t)/ (pdf(x_t[i])*q_y))
+  if(u < alpha){
+    x_t2[i+1] = y
+  } else{
+    #ii = i -1 # change this to x_t (don´t work with x_t+1 - so use value x_t-1)
+    x_t2[i+1] = x_t2[i] 
+  }
+  i = i +1
+  t = t+1
+}
+```
+
+```{r, echo=FALSE}
+# create the plot - t_max = 10.000
+plot_data_1_2 = data.frame(x_t2)
+
+plot_1_2_t10000 = ggplot(data = plot_data_1_2, aes(x = 1:length(x_t2), y = x_t2)) +
+  geom_line() + ggtitle("Metropolis-Hastings Sampler - t = 10000") + ylab("x(t)") + xlab("t")
+```
+
+```{r, echo=FALSE}
+# create a plot - t_max = 300
+
+#--------------
+# Metropolis-Hastings Sampler
+set.seed(123456)
+
+# Initilize chain to X_0, t=0
+t = 1
+t_max = 250
+i = 1 # interations
+x_0 = c(1) # starting point
+x_t2 = rep(x_0,t_max) # vector to save y or x_t
+while (t < t_max) {
+  y =  rchisq(n = 1, df = floor(x_t2[i] +1)) # floor function x & x_t +1
+  u = runif(1,0,1)
+  q_x_t = dchisq(x = x_t2[i],df = floor(x_t2[i] +1)) # take the density
+  q_y  = dchisq(x = y, df = floor(x_t2[i]+1))
+  alpha = ((pdf(y) * q_x_t)/ (pdf(x_t[i])*q_y))
+  if(u < alpha){
+    x_t2[i+1] = y
+  } else{
+    #ii = i -1 # change this to x_t (don´t work with x_t+1 - so use value x_t-1)
+    x_t2[i+1] = x_t2[i] 
+  }
+  i = i +1
+  t = t+1
+}
+#--------------
+plot_data_1_2 = data.frame(x_t2)
+
+plot_1_2_t300 = ggplot(data = plot_data_1_2, aes(x = 1:length(x_t2), y = x_t2)) +
+  geom_line() + ggtitle("Metropolis-Hastings Sampler - t = 250") + ylab("x(t)") + xlab("t")
+```
+
+
+```{r}
+grid.arrange(plot_1_2_t10000, plot_1_2_t300, nrow = 2)
+```
+
+In the first one we see the course for 10,000 iterations. In the lower visualization we see the same course, but for only 300 iterations. Thus it is easier to see that the burn-in period starts very early, even before iteration 25. The implies that the chain converges.
+
+## 3. Compare the results of Steps 1 and 2 and make conclusions.
+
+If we now compare the results of step 1 and step 2, we would choose step 2. As this step converges the chain as mentioned before, we would choose step 2. 
+
+
+## 4. Generate 10 MCMC sequences 
+using the generator from Step 2 and starting points 1, 2, . . . , or 10. Use the Gelman–Rubin method to analyze convergence of these sequences.
+
+```{r, echo=FALSE}
+# have to create 10 MCMC sequences - of step 2
+# create a vector of a starting points 1,..,10
+starting_pints = seq(from = 1, to = 10, by = 1)
+
+# run step 2 with every starting point
+t_max = 10000 # number of max iterations
+# create a data frame to save the values
+MCMC_10seq = data.frame(matrix(nrow = t_max, ncol = length(starting_pints)))
+set.seed(123456)
+# run step 2 - 10 times
+for (j in 1:length(starting_pints)) {
+# Initilize chain to X_0, t=0
+t = 1
+
+i = 1 # interations
+x_0 = starting_pints[j] # starting point
+x_t4 = rep(x_0,t_max) # vector to save y or x_t
+
+while (t < t_max) {
+  y =  rchisq(n = 1, df = (floor(x_t4[i])+1)) # floor function x & x_t +1
+  u = runif(1,0,1)
+  q_x_t = dchisq(x = x_t4[i],df = (floor(x_t4[i])+1)) # take the density
+  q_y  = dchisq(x = y, df = (floor(x_t4[i])+1))
+  alpha = ((pdf(y) * q_x_t)/ (pdf(x_t[i])*q_y))
+  if(u < alpha){
+    x_t4[i+1] = y
+  } else{
+    #ii = i -1 # change this to x_t (don´t work with x_t+1 - so use value x_t-1)
+    x_t4[i+1] = x_t4[i] 
+  }
+  i = i +1
+  t = t+1
+}
+MCMC_10seq[,j] = x_t4
+}
+# change colnames of the data frame
+data_colnames = c()
+for (i in 1:length(MCMC_10seq)) {
+  data_colnames[i] = paste("MCMC", i)
+}
+colnames(MCMC_10seq) = data_colnames
+#MCMC_10seq
+```
+
+Gelman–Rubin method:
+```{r}
+# Gelman–Rubin method
+#?coda::gelman.diag
+# convert to mcmc.list object
+
+# create empty mcmc list object
+mcmc_list = mcmc.list()
+#as.mcmc(MCMC_10seq[,2], start = 2)
+for (i in 1:length(MCMC_10seq)){
+  mcmc_list[[i]] = as.mcmc(MCMC_10seq[,i], start = i) # check the starting point values of mcmc_list
+} 
+
+gelman.diag(mcmc_list)
+```
+
+Gelman and Rubin (1992) propose a general approach to monitoring convergence of MCMC output in which m > 1 parallel chains are run with starting values that are overdispersed relative to the posterior distribution. Convergence is diagnosed when the chains have ‘forgotten’ their initial values, and the output from all chains is indistinguishable. The `gelman.diag diagnostic` is applied to a single variable from the chain. It is based a comparison of within-chain and between-chain variances, and is similar to a classical analysis of variance.
+If the chains have converged, then both estimates are unbiased.
+Values substantially above 1 indicate lack of convergence. If the chains have not converged, Bayesian credible intervals based on the t-distribution are too wide, and have the potential to shrink by this factor if the MCMC run is continued.
+
+```{r, eval=FALSE, echo=FALSE}
+# code from the lecture slide 22 ---
+library(coda)
+f1<-mcmc.list();f2<-mcmc.list();n<-100;k<-20
+X1<-matrix(rnorm(n*k),ncol=k,nrow=n)
+X2<-X1+(apply(X1,2,cumsum)*(matrix(rep(1:n,k),ncol=k)^2))
+for (i in 1:k){f1[[i]]<-as.mcmc(X1[,i]);f2[[i]]<-as.mcmc(X2[,i])}
+print(gelman.diag(f1))
+# Potential scale reduction factors:
+#     Point est. Upper C.I.
+#[1,]      0.999       1.01
+
+print(gelman.diag(f2))
+# Potential scale reduction factors:
+#     Point est. Upper C.I.
+#[1,]       1.82       2.38
+```
+
+
+## 5. Estimate
+$$  \int_0^\infty x  f(x) dx$$
+using the samples from Steps 1 and 2.
+
+Down here follows the rule on how to calculate a definite integral.
+
+MC for inference
+- Estimation of a definite integral
+
+$$ \theta = \int_D f(x) dx \  \Big(\rm recall \  \pi = \int_{\bigcirc} 1 dx\Big)$$
+
+- Decompose into:
+$$ f(x) = g(x) p(x) \  where \int_D p(x)dx = 1$$
+- Than, if $X \sim p(.)$
+$$ \theta = E[g(X)] = \int_D g(x) p(x)dx$$
+
+$$\hat \theta = \frac{1}{n}\sum_i^n g(x_i), \   \forall_i \sim p(.)$$
+
+As we can see do we have to calculate the mean of the two samples:
+
+Mean of sample 1:
+```{r, echo=FALSE}
+mean_set1 = mean(x_t)
+mean_set1
+```
+
+Mean of sample 2:
+```{r, echo=FALSE}
+mean_set2 = mean(x_t2)
+mean_set2
+```
+
+
+## 6. The distribution generated is in fact a gamma distribution. Look in the literature and define the actual value of the integral. 
+Compare it with the one you obtained.
+
+PDF of gamma distribution:
+$$\frac{1}{\Gamma(k)\theta^k} x^{k-1}e^{-\frac{x}{\theta}}$$
+
+
+# Question 2: Gibbs sampling
+
+A concentration of a certain chemical was measured in a water sample, and the result was stored in the data *chemical.RData* having the following variables:
+- X: day of the measurement
+- Y: measured concentration of the chemical.
+
+The instrument used to measure the concentration had certain accuracy; this is why the mea-
+surements can be treated as noisy. Your purpose is to restore the expected concentration values.
+
+## 1. Import the data to R and plot the dependence of Y on X. 
+What kind of model is reasonable to use here?
+
+```{r, echo=FALSE}
+# set working directory
+# import the data
+load("chemical.RData")
+# create table for plot
+data = data.frame("X" = X,
+                  "Y" = Y)
+# plot dependence of Y on X
+X_Y_dependence = ggplot(data, aes(x = X, y = Y)) + 
+  geom_point()+
+  ggtitle("Dependence of Y on X") +
+  geom_smooth()
+```
+
+```{r, echo=FALSE}
+# which model would fit the data
+# lookes like a polinomial regression -> test until poly 3
+model1 = lm(Y ~  X,
+            data = data)
+model2 = lm(Y ~  X + I(X^2),
+            data = data)
+model3 = lm(Y ~  X + I(X^2)+ I(X^3),
+            data = data)
+
+cols <- c("Lineare Regression"="#62c76b",
+          "Polynomial Regression ^2"="#3591d1",
+          "Polynomial Regression ^3"="#f04546")
+
+X_Y_dependence_fit = ggplot(data, aes(x = X, y = Y)) + 
+  geom_point()+
+  ggtitle("Dependence of Y on X") +
+  geom_line(aes(x = X, y = predict(model1), colour = "Lineare Regression")) +
+  geom_line(aes(x = X, y = predict(model2), colour = "Polynomial Regression ^2")) +
+  geom_line(aes(x = X, y = predict(model3), colour = "Polynomial Regression ^3"))
+X_Y_dependence_fit
+```
+
+It could already be seen that a linear regression does not describe the data too much. However, a second degree polynomial regression is well consistent with the course of the data. 
+As expected can be seen that the progression of polynomials 2 and 3 overlap, so a second grade is sufficient.
+
+2. A researcher has decided to use the following (random-walk) Bayesian model (n=number of observations, $\vec{\mu} = (\mu_1, ..., \mu_n)$ are unknown parameters):
+$$ Y_i  = \mathcal{N}(\mu, \sigma = 0.2), i= 1,...,n$$
+where the prior is
+$$ p(\mu_1) = 1  $$
+$$ p(\mu_{i+1} \mid \mu_i) = \mathcal{N}(\mu_i , 0.2) i = 1,...,n1  $$
+
+
+## 2. Present the formulae showing the likelihood and the prior:
+$p(\vec{Y}\mid \vec{\mu})$ and  $p(\vec{\mu})$.
+
+Likelihood:
+$$ \mathcal{L} (y_1,...,y_n \mid \mu_i, 0.2) = \prod_{i=1}^n \frac{1}{\sqrt{2 \pi 0.2^2}} exp(-\frac{(y_i-\mu_i)^2}{2*0.2^2})$$
+$$ = \Big(\frac{1}{\sqrt{0.08 \pi}}\Big)^n exp \Big(-\frac{\sum_{i=1}^n(y_i-\mu_i)^2}{0.08} \Big)$$
+
+Prior:
+$$ p(\vec{\mu}) = \prod_{i=1}^{n-1} \frac{1}{\sqrt{2 \pi 0.2^2}} exp(-\frac{(\mu_{n+1}-\mu_i)^2}{2*0.2^2})$$
+
+$$ = \Big(\frac{1}{\sqrt{0.08 \pi}}\Big)^{n-1} exp \Big(-\frac{\sum_{i=1}^n(\mu_{n+1}-\mu_n)^2}{0.08} \Big)$$
+
+
+
+\newpage
+
+# Appendix
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+```
+
