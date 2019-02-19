@@ -365,7 +365,7 @@ X_Y_dependence = ggplot(data, aes(x = X, y = Y)) +
   geom_smooth()
 ```
 
-```{r}
+```{r, echo=FALSE}
 # which model would fit the data
 # lookes like a polinomial regression -> test until poly 3
 model1 = lm(Y ~  X,
@@ -391,14 +391,25 @@ X_Y_dependence_fit
 It could already be seen that a linear regression does not describe the data too much. However, a second degree polynomial regression is well consistent with the course of the data. 
 As expected can be seen that the progression of polynomials 2 and 3 overlap, so a second grade is sufficient.
 
-2. A researcher has decided to use the following (random???walk) Bayesian model (n=number of observations, $\vec{\mu} = (\mu_1, ..., \mu_n)$ are unknown parameters):
+2. A researcher has decided to use the following (random-walk) Bayesian model (n=number of observations, $\vec{\mu} = (\mu_1, ..., \mu_n)$ are unknown parameters):
 $$ Y_i  = \mathcal{N}(\mu, \sigma = 0.2), i= 1,...,n$$
 where the prior is
 $$ p(\mu_1) = 1  $$
 $$ p(\mu_{i+1} \mid \mu_i) = \mathcal{N}(\mu_i , 0.2) i = 1,...,n1  $$
 
------- Some vec problem in this part ------ 
-Present the formulae showing the likelihood $p(\vec{Y_i}\mid \vec{\mu})$ and the prior $p(\vec{\mu})$. Hint: a chain rule can be used here $p(\vec{\mu}) = p(\mu_1) p(\mu_2 \mid \mu_1)p(\mu_3 \mid \mu_2) ... p(\mu_n \mid \mu_{n1}) $.
+
+## 2. Present the formulae showing the likelihood and the prior:
+$p(\vec{Y}\mid \vec{\mu})$ and  $p(\vec{\mu})$.
+
+Likelihood:
+$$ \mathcal{L} (y_1,...,y_n \mid \mu_i, 0.2) = \prod_{i=1}^n \frac{1}{\sqrt{2 \pi 0.2^2}} exp(-\frac{(y_i-\mu_i)^2}{2*0.2^2})$$
+$$ = \Big(\frac{1}{\sqrt{0.08 \pi}}\Big)^n exp \Big(-\frac{\sum_{i=1}^n(y_i-\mu_i)^2}{0.08} \Big)$$
+
+Prior:
+$$ p(\vec{\mu}) = \prod_{i=1}^{n-1} \frac{1}{\sqrt{2 \pi 0.2^2}} exp(-\frac{(\mu_{n+1}-\mu_i)^2}{2*0.2^2})$$
+
+$$ = \Big(\frac{1}{\sqrt{0.08 \pi}}\Big)^{n-1} exp \Big(-\frac{\sum_{i=1}^n(\mu_{n+1}-\mu_n)^2}{0.08} \Big)$$
+
 
 
 \newpage
