@@ -257,11 +257,11 @@ which closes to our estimated results.
 # Question 2: Gibbs sampling
 
 A concentration of a certain chemical was measured in a water sample, and the result was stored in the data *chemical.RData* having the following variables:
-- X: day of the measurement
-- Y: measured concentration of the chemical.
 
-The instrument used to measure the concentration had certain accuracy; this is why the mea-
-surements can be treated as noisy. Your purpose is to restore the expected concentration values.
+* X: day of the measurement
+* Y: measured concentration of the chemical.
+
+The instrument used to measure the concentration had certain accuracy; this is why the measurements can be treated as noisy. Your purpose is to restore the expected concentration values.
 
 ## 1. Import the data to R and plot the dependence of Y on X. 
 What kind of model is reasonable to use here?
@@ -305,27 +305,92 @@ X_Y_dependence_fit = ggplot(data, aes(x = X, y = Y)) +
 X_Y_dependence_fit
 ```
 
-It could already be seen that a linear regression does not describe the data too much. However, a second degree polynomial regression is well consistent with the course of the data. 
-As expected can be seen that the progression of polynomials 2 and 3 overlap, so a second grade is sufficient.
+It could already be seen that a linear regression does not describe the data too much. However, a second degree polynomial regression is well consistent with the course of the data. As expected can be seen that the progression of polynomials 2 and 3 overlap, so a second grade is sufficient.
 
-2. A researcher has decided to use the following (random-walk) Bayesian model (n=number of observations, $\vec{\mu} = (\mu_1, ..., \mu_n)$ are unknown parameters):
-$$ Y_i  = \mathcal{N}(\mu, \sigma = 0.2), i= 1,...,n$$
+## 2. Present the formula showing the likelihood $p(\vec{Y}\mid \vec{\mu})$ and the prior $p(\vec{\mu})$
+
+A researcher has decided to use the following (random-walk) Bayesian model (n=number of observations, $\vec{\mu} = (\mu_1, ..., \mu_n)$ are unknown parameters):
+$$ Y_i  = \mathcal{N}(\mu, \sigma = 0.2),~~ i= 1,...,n$$
 where the prior is
 $$ p(\mu_1) = 1  $$
-$$ p(\mu_{i+1} \mid \mu_i) = \mathcal{N}(\mu_i , 0.2) i = 1,...,n1  $$
+$$ p(\mu_{i+1} \mid \mu_i) = \mathcal{N}(\mu_i , 0.2)~~~i = 1,...,n-1  $$
 
-
-## 2. Present the formulae showing the likelihood and the prior:
+Present the formulae showing the likelihood and the prior:
 $p(\vec{Y}\mid \vec{\mu})$ and  $p(\vec{\mu})$.
 
 Likelihood:
-$$ \mathcal{L} (y_1,...,y_n \mid \mu_i, 0.2) = \prod_{i=1}^n \frac{1}{\sqrt{2 \pi 0.2^2}} exp(-\frac{(y_i-\mu_i)^2}{2*0.2^2})$$
-$$ = \Big(\frac{1}{\sqrt{0.08 \pi}}\Big)^n exp \Big(-\frac{\sum_{i=1}^n(y_i-\mu_i)^2}{0.08} \Big)$$
-
+$$
+\begin{aligned}
+\mathcal L[p(\vec Y|\vec \mu,0.2)]
+=& \prod_{i=1}^n \frac{1}{\sqrt{2 \pi \cdot 0.2}} \exp(-\frac{(y_i-\mu_i)^2}{2\cdot 0.2})\\
+=& \Big(\frac{1}{\sqrt{0.4\pi}}\Big)^n \exp \Big(-\frac{\sum_{i=1}^n(y_i-\mu_i)^2}{0.4} \Big)
+\end{aligned}
+$$
 Prior:
-$$ p(\vec{\mu}) = \prod_{i=1}^{n-1} \frac{1}{\sqrt{2 \pi 0.2^2}} exp(-\frac{(\mu_{n+1}-\mu_i)^2}{2*0.2^2})$$
+$$
+\begin{aligned}
+p(\vec\mu) 
+=&~p(\mu_1)\cdot p(\mu_2|\mu_1)\cdot p(\mu_3|\mu_2)\cdots \cdot p(\mu_n|\mu_{n-1}) \\
+=&~1\cdot \prod_{i=2}^{n} p(\mu_n|\mu_{n-1}) \\
+=&~\frac{1}{\sqrt{0.4\pi}} \exp(-\frac{(\mu_{2}-\mu_1)^2}{0.4})\cdots \exp(-\frac{(\mu_{n}-\mu_{n-1})^2}{0.4})\\
+=&\Big(\frac{1}{\sqrt{0.4\pi}}\Big)^{n-1}  \exp(-\frac{\sum_{i=2}^n(\mu_{i}-\mu_{i-1})^2}{0.4})
+\end{aligned}
+$$
 
-$$ = \Big(\frac{1}{\sqrt{0.08 \pi}}\Big)^{n-1} exp \Big(-\frac{\sum_{i=1}^n(\mu_{n+1}-\mu_n)^2}{0.08} \Big)$$
+## 3. Use Bayes' Theorem
+to get the posterior up to a constant proportionality, and then fnd
+out the distributions of $(\mu_i|\vec\mu_{-i},\vec{Y})$, where $\mu_{-i}$ is a vector containing all $\mu$ values except of $\mu_i$.
+
+Firstly, we calculate 
+$$
+\begin{aligned}
+p(\vec\mu,\vec Y)=&~~p(\vec Y|\vec\mu) \cdot p(\vec\mu)\\
+\propto&~~ \exp \Big(-\frac{\sum_{i=1}^n(y_i-\mu_i)^2}{0.4} \Big)\cdot \exp(-\frac{\sum_{i=2}^n(\mu_{i}-\mu_{i-1})^2}{0.4})\\
+=&~~ \exp(-\frac{\sum_{i=1}^n(y_i-\mu_i)^2+\sum_{i=2}^n(\mu_{i}-\mu_{i-1})^2}{0.4})~~.
+\end{aligned}
+$$
+Then, we know
+$$
+\begin{aligned}
+p(\mu_{1}|\vec\mu_{-1},\vec Y)
+\propto~&\exp \Big(-\frac{\sum_{i=2}^{n}(y_i-\mu_i)^2+\sum_{i=2}^{n}(\mu_{i}-\mu_{i-1})^2}{0.4})~~,
+\end{aligned}
+$$
+and
+$$
+\begin{aligned}
+p(\mu_{n}|\vec\mu_{-n},\vec Y)
+\propto&~~ \exp \Big(-\frac{\sum_{i=1}^{n-1}(y_i-\mu_i)^2+\sum_{i=2}^{n-1}(\mu_{i}-\mu_{i-1})^2}{0.4})~~.
+\end{aligned}
+$$
+Since
+$$p(\mu_i|\vec\mu_{-i},\vec{Y})\cdot p(\vec \mu_{-i}|\vec Y)=p(\mu_i,\vec{\mu}_{-i},\vec{Y})=p(\vec \mu,\vec Y)~~,$$
+we can conclude that
+$$
+\begin{aligned}
+p(\mu_i|\vec\mu_{-i},\vec{Y})=&~~\frac{p(\vec \mu,\vec Y)}{p(\vec \mu_{-i}|\vec Y)}\\
+\propto&\frac{\exp \Big(-\frac{\sum_{i=1}^{n}(y_i-\mu_i)^2+\sum_{i=2}^{n}(\mu_{i}-\mu_{i-1})^2}{0.4})}{\exp \Big(-\frac{\sum_{k=1,k\neq i}^{n-1}(y_k-\mu_k)^2+\sum_{k=2,k\neq i}^{n-1}(\mu_{k}-\mu_{k-1})^2}{0.4})}\\
+\propto&~~\exp(-\frac{(y_i-\mu_i)^2+(\mu_i-\mu_{i-1})^2}{2\sigma^2})\\
+\propto&~~ \exp(-\frac{(\mu_i-(y_i+\mu_{i-1})/{2})^2}{2\sigma^2/2})\\
+=&~~ \exp(-\frac{(\mu_i-(y_i+\mu_{i-1})/{2})^2}{\sigma^2}) ~~.
+\end{aligned}
+$$
+The deduction shows that 
+$$(\mu_i|\vec\mu_{-i},\vec{Y})\sim N(\frac{(y_i+\mu_{i-1})}{2},\frac{\sigma^2}{2}).$$
+
+
+## 4.Use the distributions derived in Step 3 to implement a Gibbs sampler 
+
+that uses $\vec \mu_0=(0,...,0)$ as a starting point. Run the Gibbs sampler to obtain 1000 values of $\vec \mu$ and then compute the expected value of $\vec \mu$ by using a Monte Carlo approach. Plot the expected value of $\vec \mu$ versus X and Y versus X in the same graph. Does it seem that you have managed to remove the noise? Does it seem that the expected value of $\vec \mu$ can catch the true underlying dependence between Y and X?
+
+```{r}
+n = 10000
+X_0 = rep(0, n)
+gibbs = function(n, x_0){
+  
+}
+
+```
 
 
 
