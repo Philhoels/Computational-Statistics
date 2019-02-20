@@ -352,44 +352,85 @@ $$
 Then, we know
 $$
 \begin{aligned}
-p(\mu_{1}|\vec\mu_{-1},\vec Y)
+p(\vec\mu_{-1},\vec Y)
 \propto~&\exp \Big(-\frac{\sum_{i=2}^{n}(y_i-\mu_i)^2+\sum_{i=2}^{n}(\mu_{i}-\mu_{i-1})^2}{0.4})~~,
 \end{aligned}
 $$
 and
 $$
 \begin{aligned}
-p(\mu_{n}|\vec\mu_{-n},\vec Y)
+p(\vec\mu_{-n},\vec Y)
 \propto&~~ \exp \Big(-\frac{\sum_{i=1}^{n-1}(y_i-\mu_i)^2+\sum_{i=2}^{n-1}(\mu_{i}-\mu_{i-1})^2}{0.4})~~.
 \end{aligned}
 $$
 Since
-$$p(\mu_i|\vec\mu_{-i},\vec{Y})\cdot p(\vec \mu_{-i}|\vec Y)=p(\mu_i,\vec{\mu}_{-i},\vec{Y})=p(\vec \mu,\vec Y)~~,$$
+$$p(\mu_i|\vec\mu_{-i},\vec{Y})\cdot p(\vec \mu_{-i},\vec Y)=p(\mu_i,\vec{\mu}_{-i},\vec{Y})=p(\vec \mu,\vec Y)~~,$$
 we can conclude that
 $$
 \begin{aligned}
-p(\mu_i|\vec\mu_{-i},\vec{Y})=&~~\frac{p(\vec \mu,\vec Y)}{p(\vec \mu_{-i}|\vec Y)}\\
+p(\mu_i|\vec\mu_{-i},\vec{Y})=&~~\frac{p(\vec \mu,\vec Y)}{p(\vec \mu_{-i},\vec Y)}\\
 \propto&\frac{\exp \Big(-\frac{\sum_{i=1}^{n}(y_i-\mu_i)^2+\sum_{i=2}^{n}(\mu_{i}-\mu_{i-1})^2}{0.4})}{\exp \Big(-\frac{\sum_{k=1,k\neq i}^{n-1}(y_k-\mu_k)^2+\sum_{k=2,k\neq i}^{n-1}(\mu_{k}-\mu_{k-1})^2}{0.4})}\\
 \propto&~~\exp(-\frac{(y_i-\mu_i)^2+(\mu_i-\mu_{i-1})^2}{2\sigma^2})\\
 \propto&~~ \exp(-\frac{(\mu_i-(y_i+\mu_{i-1})/{2})^2}{2\sigma^2/2})\\
-=&~~ \exp(-\frac{(\mu_i-(y_i+\mu_{i-1})/{2})^2}{\sigma^2}) ~~.
+=&~~ \frac{1}{\sqrt{0.4\pi}}\exp(-\frac{(\mu_i-(y_i+\mu_{i-1})/{2})^2}{0.2}), ~~i>1,
 \end{aligned}
 $$
+where
+$$
+p(\mu_1|\vec\mu_{-1},\vec{Y})=\frac{1}{\sqrt{0.4\pi}}\exp(\frac{(y_1-\mu_1)^2}{0.4}).
+$$
 The deduction shows that 
-$$(\mu_i|\vec\mu_{-i},\vec{Y})\sim N(\frac{(y_i+\mu_{i-1})}{2},\frac{\sigma^2}{2}).$$
+$$ 
+(\mu_i|\vec\mu_{-i},\vec{Y})\sim\left\{
+\begin{array}{rcl}
+N(\frac{y_i-\mu_{i-1}}{2},0.1)       &      & i>1\\
+N(y_1,0.2)     &      & i=1
+\end{array} \right. 
+$$
 
 
 ## 4.Use the distributions derived in Step 3 to implement a Gibbs sampler 
 
-that uses $\vec \mu_0=(0,...,0)$ as a starting point. Run the Gibbs sampler to obtain 1000 values of $\vec \mu$ and then compute the expected value of $\vec \mu$ by using a Monte Carlo approach. Plot the expected value of $\vec \mu$ versus X and Y versus X in the same graph. Does it seem that you have managed to remove the noise? Does it seem that the expected value of $\vec \mu$ can catch the true underlying dependence between Y and X?
+that uses $\vec \mu^0=(0,...,0)$ as a starting point. Run the Gibbs sampler to obtain 1000 values of $\vec \mu$ and then compute the expected value of $\vec \mu$ by using a Monte Carlo approach. Plot the expected value of $\vec \mu$ versus X and Y versus X in the same graph. Does it seem that you have managed to remove the noise? Does it seem that the expected value of $\vec \mu$ can catch the true underlying dependence between Y and X?
 
 ```{r}
-n = 10000
-X_0 = rep(0, n)
-gibbs = function(n, x_0){
-  
-}
+nstep = 1000
+d = length(Y)
+mu0 = rep(0,d)
 
+gibbs = function(nstep, mu0, y0){
+  # browser()
+    d <- length(mu0)
+    mat_mu <- matrix(0, nrow=nstep, ncol=d)
+    mat_mu[1,] <- mu0
+    mat_y <- matrix(0, nrow=nstep, ncol=d)
+    mat_y[1,] <- y0
+    for (t in 2:nstep) {
+      mat_mu[t,1] = rnorm(1,mat_y[t-1,1],0.2)
+      for (i in 2:d) {
+        mat_mu[t,i] = rnorm(1,(mat_y[t-1,i]-mat_mu[t-1,i-1])/2,0.1)
+      }
+      mat_y[t,] = rnorm(d,mat_mu[t,],0.2)
+    }
+    # browser()
+    mat_mu
+}
+re = gibbs(nstep, mu0, Y)
+data_2_4 = data.frame(cbind(X=X,Y=Y, mu=re[nstep,]))
+data_melt  <- reshape2::melt(data_2_4, id="X")
+ggplot(data_melt, aes(x=X,y=value,color=variable))+
+  geom_line()+
+  geom_point()
+```
+
+## 5.trace plot
+Make a trace plot for $\mu_n$ and comment on the burn{in period and convergence.
+```{r}
+
+data_gribbs = cbind(nstep=1:1000,data.frame(re))
+data_melt  <- reshape2::melt(data_gribbs, id="nstep")
+ggplot(data_melt, aes(x=nstep, y=value, color=variable))+
+  geom_line()
 ```
 
 
