@@ -227,7 +227,7 @@ $$\hat \theta = \frac{1}{n}\sum_i^n g(x_i), \   \forall_i \sim p(.)$$
 
 Our target function is a probability density function, whose integral must be 1. Since we already have the samples from the target distribution by Metropolis-Hastings algorithm, the final integral of $xf(x)$ can be estimated as the mean of such samples.
 
-### Mean of sample 1:
+Mean of sample 1:
 ```{r, echo=FALSE}
 mean_set1 = mean(data_1_1$vX)
 mean_set1
