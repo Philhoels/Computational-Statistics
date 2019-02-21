@@ -20,12 +20,12 @@ library(gridExtra)
 
 ```{r, echo=FALSE}
 # infromation & marterial
-# vey nice blog - MCMC and the Metropolis–Hastings algorithm
+# vey nice blog - MCMC and the Metropolis-Hastings algorithm
 #https://blog.stata.com/2016/11/15/introduction-to-bayesian-statistics-part-2-mcmc-and-the-metropolis-hastings-algorithm/
 ```
 
 
-# Question 1: Computations with Metropolis-Hastings
+# Question 1: Computations with Metropolis - Hastings
 
 Consider the following probability density function:
 
@@ -33,8 +33,8 @@ $$f(x)\ \propto \ x^5\  e^{-x},\ x>0$$
 
 You can see that the distribution is known up to some constant of proportionality. If you are interested (NOT part of the Lab) this constant can be found by applying integration by parts multiple times and equals 120.
 
-## 1. Use Metropolis–Hastings algorithm 
-to generate samples from this distribution by using proposal distribution as log–normal $\rm LN(X_t,1)$, take some starting point. Plot the chain you obtained as a time series plot. What can you guess about the convergence of the chain? If there is a burn–in period, what can be the size of this period?
+## 1. Use Metropolis-Hastings algorithm 
+to generate samples from this distribution by using proposal distribution as log-normal $\rm LN(X_t,1)$, take some starting point. Plot the chain you obtained as a time series plot. What can you guess about the convergence of the chain? If there is a burn-in period, what can be the size of this period?
 
 ```{r}
 rm(list=ls())
@@ -94,7 +94,7 @@ data_1_1 = MCMC(t_max, x_0)
 
 # create the plot object
 points11= ggplot(data = data_1_1, aes(x= vN, y= vX)) +
-  geom_point()+
+  geom_line()+
   ggtitle("Metropolis-Hastings Sampler 10000 iterations")+ 
   ylab("x(t)")+ 
   xlab("t")
@@ -111,7 +111,7 @@ grid.arrange(points11,density11,nrow=2)
 
 ```{r echo=FALSE, out.width="320px"}
 ggplot(data = data_1_1[1:200,], aes(x= vN, y= vX)) +
-  geom_point()+
+  geom_line()+
   ggtitle("Metropolis-Hastings Sampler (200 iterations)")+ 
   ylab("x(t)")+ 
   xlab("t")
@@ -119,10 +119,10 @@ ggplot(data = data_1_1[1:200,], aes(x= vN, y= vX)) +
 
 The sample points seem to be convergent around 2.5 and 15. We also draw another plot with 200 iterations to find the burn-in period, but it seems that burn-in period is so short (from 0 to 10).
 
-## 2. Perform Step 1 by using the chi–square distribution 
+## 2. Perform Step 1 by using the chi-square distribution 
 $\chi^2$ $(\lfloor X_t + 1\rfloor)$ as a proposal distribution, where$\lfloor x \rfloor$ is the floor function, meaning the integer part of x for positive x, i.e.$\lfloor 2.95 \rfloor = 2$
 
-Metropolis–Hastings algorithm with chi-square as proposal distribution
+Metropolis-Hastings algorithm with chi-square as proposal distribution
 ```{r}
 
 MCMC2 <- function(t_max, x_0){
@@ -157,7 +157,7 @@ data_1_2 = MCMC2(t_max, x_0)
 
 # create the plot object
 points12= ggplot(data = data_1_2, aes(x= vN, y= vX)) +
-  geom_point()+
+  geom_line()+
   ggtitle("Metropolis-Hastings Sampler (10000 iterations)")+ 
   ylab("x(t)")+ 
   xlab("t")
@@ -176,7 +176,7 @@ grid.arrange(points12,density12,nrow=2)
 
 # create the plot object
 ggplot(data = data_1_2[1:200,], aes(x= vN, y= vX)) +
-  geom_point()+
+  geom_line()+
   ggtitle("Metropolis-Hastings Sampler (200 iterations)")+ 
   ylab("x(t)")+ 
   xlab("t")
@@ -187,7 +187,7 @@ ggplot(data = data_1_2[1:200,], aes(x= vN, y= vX)) +
 In step 2, the MH method based on chi-square distribution has similar burn-in period (0~10) and convergent interval (2.5~15). However, the rejection rate of the method in step 2 is around 0.4, but in step 1 is more than 0.5, which means that chi-square distribution might be a better proposal distribution than log-normal distribution to generate the samples of our target distribution.
 
 ## 4. Generate 10 MCMC sequences 
-using the generator from Step 2 and starting points 1, 2, . . . , or 10. Use the Gelman–Rubin method to analyze convergence of these sequences.
+using the generator from Step 2 and starting points 1, 2, . . . , or 10. Use the Gelman-Rubin method to analyze convergence of these sequences.
 
 ```{r}
 # Generation 10 MCMC sequences with start points 1~10
@@ -202,7 +202,7 @@ for (i in 1:10){
   mcmc_list[[i]] = as.mcmc(df[,i+1], start = i) 
 } 
 
-# Gelman–Rubin method:
+# Gelman-Rubin method:
 gelman.diag(mcmc_list)
 ```
 
@@ -414,6 +414,10 @@ gibbs = function(nstep, mu0, y){
 }
 
 re = gibbs(nstep, mu0, Y)
+```
+
+Expected value of $\vec \mu$ versus X and Y versus X: 
+```{r, echo=FALSE}
 data_2_4 = data.frame(cbind(X=X,Y=Y, mu=colMeans(re)))
 data_melt  <- reshape2::melt(data_2_4, id="X")
 ggplot(data_melt, aes(x=X,y=value,color=variable))+
@@ -421,8 +425,13 @@ ggplot(data_melt, aes(x=X,y=value,color=variable))+
   geom_point()
 ```
 
-## 5.trace plot
-Make a trace plot for $\mu_n$ and comment on the burn{in period and convergence.
+In the generated visualization a very similar course of Y and mu can be seen. This means that the noise could be removed well. In the area the variance is greatest. It can also be said that the expected value of $\vec \mu$ can catch the true underlying dependence between Y and X well.
+
+
+\newpage
+
+## 5.Trace plot
+Make a trace plot for $\mu_n$ and comment on the burn-in period and convergence.
 ```{r echo=FALSE}
 
 data_gribbs = data.frame(nstep=1:1000,mu=rowMeans(re))
@@ -430,6 +439,7 @@ ggplot(data_gribbs, aes(x=nstep, y=mu, color = "Red"))+
   geom_line()
 ```
 
+In the visualization can we see an early burn-in, already after some interactions does it converges.
 
 
 \newpage
