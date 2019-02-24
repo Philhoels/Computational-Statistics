@@ -1,0 +1,220 @@
+---
+title: "Computer Lab 5 Computational Statistics"
+author: "Phillip Hölscher"
+date: "23 2 2019"
+output: 
+  pdf_document:
+    toc: true 
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=FALSE, results='hide'}
+# libraries used in this lab
+library(ggplot2)
+#install.packages("boot") # to create booststarp
+library("boot")
+```
+
+\newpage
+
+#Question 1: Hypothesis testing
+
+In 1970, the US Congress instituted a random selection process for the military draft. All 366 possible birth dates were placed in plastic capsules in a rotating drum and were selected one by one. The first date drawn from the drum received draft number one, the second date drawn received draft number two, etc. Then, eligible men were drafted in the order given by the draft number of their birth date. In a truly random lottery there should be no relationship between the date and the draft number. Your task is to investigate whether or not the draft numbers were randomly selected. The draft numbers (`Y=Draft No`) sorted by day of year (`X=Day of year`) are given in the file *lottery.xls*.
+
+## 1. Make a scatterplot of Y versus X 
+and conclude whether the lottery looks random.
+
+Scatterplot of Y versus X
+```{r, echo=FALSE}
+# scatterplot 
+rm(list=ls())
+data1 = read.csv2("lottery.csv")
+Y = data1$Draft_No
+X = data1$Day_of_year
+
+plot_11 = ggplot(data = data1,aes(x = X, y = Y)) + 
+  geom_point() 
+plot_11
+```
+
+Since the dots are spaced over the whole area, it seems like the military draft is truly random.
+
+## 2. Compute an estimate 
+$\hat{Y}$ of the expected response as a function of $X$ by using a loess smoother (use `loess()`), put the curve $\hat{Y}$ versus $X$ in the previous graph and state again whether the lottery looks random.
+
+
+Scatterplot of $\hat{Y}$ versus X
+```{r, warning=FALSE, echo=FALSE}
+plot_12 = plot_11 + 
+  geom_smooth(model ="loess") + # `geom_smooth()` using method = 'loess' and formula 'y ~ x' - that´s correct
+  ylab(expression(hat(Y)))
+plot_12
+
+
+```
+
+To check whether the lottery is random, it is reasonable to use test statistics
+
+$$ T = \frac{\hat{Y}(X_b)-\hat{Y}(X_a)}{X_b - X_a}, \rm where\  X_b = \rm argmax Y(X), \  X_a = \rm argmin Y(X)  $$
+
+If this value is significantly greater than zero, then there should be a trend in the data and the lottery is not random. Estimate the distribution of $T$ by using a non–parametric bootstrap with $B = 2000$ and comment whether the lottery is random or not. What is the p–value of the test?
+
+
+# Question 2: Bootstrap, jackknife and confidence intervals
+
+```{r, echo=FALSE, results='hide'}
+rm(list = ls())
+data2 = read.csv2("prices1.csv")
+```
+
+
+The data you are going to continue analyzing is the database of home prices in Albuquerque, 1993. The variables present are `Price`; `SqFt`: the area of a house; `FEATS`: number of features such as dishwasher, refrigerator and so on; `Taxes: annual taxes paid for the house. Explore the file *prices1.xls*.
+
+## 1. Plot the histogram of Price. 
+Does it remind any conventional distribution? Compute the mean price.
+
+```{r, echo=FALSE, warning=FALSE, out.height="300px", out.width="350px"}
+# calculate the mean of the price
+price_mean = mean(data2$Price) # 1080.473
+
+cols <- c("Mean"="#FF6633")
+# create the plot - hist + distribution + mean
+ggplot(data = data2, aes(x = Price)) + 
+  #geom_histogram(color = "#33CCFF", fill = "#33CCFF") + 
+  ggtitle("Histogram of Price") + 
+  geom_vline(aes(xintercept = price_mean, color = "Mean")) + 
+  geom_histogram(aes(y=..density..),
+                 colour="black",
+                 fill="white",
+                 bins=30)+
+  geom_density(alpha=.2, fill="#FF6666")  
+  # geom_density(kernel = "poisson") create a possion distribution
+```
+
+The present distribution looks like a possion distribution. 
+
+The mean of the price is:
+```{r}
+price_mean
+```
+
+
+```{r, echo=FALSE, eval=FALSE}
+# create a possion distribution
+x = 540:2150 # min und max
+pdf_poisson = dpois(x, lambda = 6)
+
+data_possion = data.frame("x" = x,
+                          "pdf_poisson" = pdf_poisson)
+
+ggplot(data = data_possion, aes(x, pdf_poisson)) + 
+  geom_point()
+```
+
+## 2. Estimate the distribution of the mean price of the house using bootstrap. 
+Determine the bootstrap bias-correction and the variance of the mean price. Compute a 95% confidence interval for the mean price using bootstrap percentile, bootstrap BCa, and first-order normal approximation
+
+```{r, echo=FALSE, eval=FALSE}
+# hits from the lab paper
+Hint: boot(),boot.ci(),plot.boot(),print.bootci()
+```
+
+```{r, echo=FALSE}
+# code from slide 17
+stat1 <- function(data,vn){
+    data<-as.data.frame(data[vn,])
+    res<-lm(Response~Predictor,data)
+    res$coefficients[2]
+}
+x<-rnorm(100)
+data<-cbind(Predictor=x, Response=3+2*x+rnorm(length(x), sd=0.5))
+res<-boot(data,stat1,R=1000)
+print(boot.ci(res))
+```
+
+
+Estimate the distribution of the mean price of the house using bootstrap
+```{r}
+# function - estiamte mean
+stat1 <- function(data,vn){
+    data = as.data.frame(data[vn,])
+    return(mean(data$Price))
+}
+
+set.seed(123456)
+res1 = boot(data2, stat1, R=1000)
+res1
+```
+
+```{r, echo=FALSE}
+# 95% confidence interval mean price 
+# --- bootstrap percentile, bootstrap BCa, and first–order normal approximation
+print(boot.ci(res1)) # , type = c("perc", "bca", "basic")
+
+# plot
+plot(res1)
+
+# the two functions does not work
+plot.boot(res)
+print.bootci(res)
+
+```
+
+Uncertainty estimation: variance of estimator
+- Bootstrap
+
+$$\widehat{Var[T(.)]} = \frac{1}{B-1} \sum_{i=1}^B(T(D_i^*) - \overline{T(D^*)})^2$$
+
+```{r}
+# Uncertainty estimation: variance of estimator
+# - Bootstrap
+stat2 = function(data, vn){
+  data = data[vn]
+  result = (1/(length(data) -1)) * sum((data - mean(data))^2)
+  return(result)
+}
+
+set.seed(123456)
+res2 = boot(res1$t, stat2, R=1000)
+res2
+```
+
+
+##3. Estimate the variance of the mean price using the jackknife 
+and compare it with the
+- Jackknife (n = B)
+
+$$\widehat{Var[T(.)]} = \frac{1}{n(n-1)}\sum_{i=1}^n ((\rm T_i^*)- \rm J(T))^2, \\ \rm where \  T_i^* = nT(D)-(n-1)T(D_i^*) \\ and \  J(T)= \frac{1}{n}\sum_{i=1}^{n}T_i^* $$
+
+
+```{r}
+n = nrow(data2)
+constant = 1/(n*(n-1))
+T_i_star = c()
+for (i in 1:n) {
+  T_i_star[i] = n * mean(data2$Price) - (n-1) * mean(data2[-i,1])
+}
+J_T = (1/n) * sum(T_i_star)
+Var_T_jackknife = constant * sum((T_i_star - J_T)^2)
+```
+
+## 4. Compare the confidence intervals obtained 
+with respect to their length and the location of the estimated mean in these intervals.
+
+```{r}
+
+```
+
+
+
+
+
+
+\newpage
+
+# Appendix
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+```
