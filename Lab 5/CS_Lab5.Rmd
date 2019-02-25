@@ -15,7 +15,7 @@ knitr::opts_chunk$set(echo = TRUE)
 # libraries used in this lab
 library(ggplot2)
 #install.packages("boot") # to create booststarp
-library("boot")
+library(boot)
 ```
 
 \newpage
@@ -52,15 +52,123 @@ plot_12 = plot_11 +
   geom_smooth(model ="loess") + # `geom_smooth()` using method = 'loess' and formula 'y ~ x' - that´s correct
   ylab(expression(hat(Y)))
 plot_12
-
-
 ```
 
-To check whether the lottery is random, it is reasonable to use test statistics
+It does look like the loess smoother decreases slowly after X (= Day of year) passes number 100. This could mean the draft is not truly random. 
+
+## 3. To check whether the lottery is random, it is reasonable to use test statistics
 
 $$ T = \frac{\hat{Y}(X_b)-\hat{Y}(X_a)}{X_b - X_a}, \rm where\  X_b = \rm argmax Y(X), \  X_a = \rm argmin Y(X)  $$
 
 If this value is significantly greater than zero, then there should be a trend in the data and the lottery is not random. Estimate the distribution of $T$ by using a non–parametric bootstrap with $B = 2000$ and comment whether the lottery is random or not. What is the p–value of the test?
+
+```{r, echo=FALSE, eval=FALSE}
+# code frome slide 17
+stat1 <- function(data,vn){
+    data<-as.data.frame(data[vn,])
+    res<-lm(Response~Predictor,data)
+    res$coefficients[2]
+}
+```
+
+
+```{r}
+# use non parametric bootstrap 
+# need data = data1, statistic = loess & test stat, R = 200
+stats = function(data,vn){
+   data<-data[vn,]
+  # Y=Draft No & X=Day of year
+  # create the loess regression
+  reg = loess(Draft_No ~ Day_of_year, 
+              data = data)
+  # get the min and max positions of x - for fit
+  X_b = which.max(reg$fitted)
+  X_a = which.min(reg$fitted)
+  # fit regression for x values
+  fit_X_b = reg$fitted[X_b]
+  fit_X_a = reg$fitted[X_a]
+  # the given test statistic
+  T_stat = (fit_X_b - fit_X_a) / (data$Day_of_year[X_b] - data$Day_of_year[X_a])
+  return(T_stat)
+}
+
+#bootstrap
+set.seed(311015)
+myboot = boot(data = data1, 
+              statistic = stats,
+              R = 2000)
+```
+
+```{r, echo=FALSE}
+# plot distribution
+plot(myboot, index = 1)
+# this plot is not nice
+
+plot_13_data = data.frame("t" = myboot$t,
+                          "index" = 1:length(myboot$t))
+mean_t = mean(myboot$t)
+
+plot_13 = ggplot(data = plot_13_data, aes(x = t)) + 
+  ggtitle("Histogram of t") + 
+  geom_histogram(aes(y=..density..),
+                 colour="black",
+                 fill="white",
+                 bins=100) + 
+  geom_vline(aes(xintercept = mean_t, color = "red"))
+plot_13
+```
+
+Here we are able to see the distribution is not around 0, the mean is -0.358. Which means the selection is not truly random.
+
+We used following calculation to estimate the p-value: $\hat{p} =\frac{\sum T(X) \geqslant 0}{B}$
+
+```{r,echo=FALSE}
+# calculate the p-value
+# lecture slide 11
+p_val = sum(myboot$t >= 0)/length(myboot$t)
+p_val
+```
+
+## 4. Implement a function depending on *data* 
+and *B* that tests the hypothesis
+
+- *H0*: Lottery is random versus
+
+- *H1*: Lottery is non–random
+
+by using a permutation test with statistics `T`. The function is to return the p–value of this test. Test this function on our data with `B = 2000.
+
+
+```{r, echo=FALSE, eval=FALSE}
+# code from the lecture - slide 12.a
+mouse<-read.csv("mouse.csv",sep=";",header=TRUE)
+B=1000
+stat=numeric(B)
+n=dim(mouse)[1]
+for(b in 1:B){
+  Gb=sample(mouse$Group, n)
+
+  stat[b]=mean(mouse$Value[Gb=='z'])-mean(mouse$Value[Gb=='y'])
+}
+stat0=mean(mouse$Value[mouse$Group=='z'])-mean(mouse$Value[mouse$Group=='y'])
+print(c(stat0,mean(stat>stat0)))
+## [1] 30.63492  0.12700
+```
+
+```{r}
+B = 2000
+stat = numeric(B)
+n = dim(data1)[1]
+for(b in 1:B){
+  Gb=sample(data1$Day_of_year, n)
+  
+
+  
+  stat[b]=mean(mouse$Value[Gb=='z'])-mean(mouse$Value[Gb=='y'])
+}
+```
+
+
 
 
 # Question 2: Bootstrap, jackknife and confidence intervals
