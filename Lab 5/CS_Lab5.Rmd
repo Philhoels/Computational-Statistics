@@ -157,15 +157,26 @@ print(c(stat0,mean(stat>stat0)))
 
 ```{r}
 B = 2000
-stat = numeric(B)
+T_stat = numeric(B)
 n = dim(data1)[1]
 for(b in 1:B){
   Gb=sample(data1$Day_of_year, n)
+  data_gb = data.frame("Draft_No" = data1$Draft_No, 
+                       "gb"=Gb)
   
-
-  
-  stat[b]=mean(mouse$Value[Gb=='z'])-mean(mouse$Value[Gb=='y'])
+  reg = loess(Draft_No ~ gb, 
+              data = data_gb)
+  # get the min and max positions of x - for fit
+  X_b = which.max(reg$fitted)
+  X_a = which.min(reg$fitted)
+  # fit regression for x values
+  fit_X_b = reg$fitted[X_b]
+  fit_X_a = reg$fitted[X_a]
+  # the given test statistic
+  T_stat[b] = (fit_X_b - fit_X_a) / (data_gb$gb[X_b] - data_gb$gb[X_a])
+  return(T_stat)
 }
+
 ```
 
 
