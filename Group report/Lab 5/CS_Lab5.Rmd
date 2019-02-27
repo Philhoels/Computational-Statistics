@@ -18,7 +18,7 @@ library(boot)
 
 \newpage
 
-#Question 1: Hypothesis testing
+# Question 1: Hypothesis testing
 
 In 1970, the US Congress instituted a random selection process for the military draft. All 366 possible birth dates were placed in plastic capsules in a rotating drum and were selected one by one. The first date drawn from the drum received draft number one, the second date drawn received draft number two, etc. Then, eligible men were drafted in the order given by the draft number of their birth date. In a truly random lottery there should be no relationship between the date and the draft number. Your task is to investigate whether or not the draft numbers were randomly selected. The draft numbers (`Y=Draft_No`) sorted by day of year (`X=Day_of_year`) are given in the file *lottery.xls*.
 
@@ -92,7 +92,17 @@ myboot = boot(data = data1,
 myboot
 
 # plot distribution
-plot(myboot, index = 1)
+# plot(myboot, index = 1)
+
+d <- data.frame(t=myboot$t)
+mean_t = mean(myboot$t,na.rm = TRUE)
+ggplot(data = d, aes(x = t)) + 
+  ggtitle("Histogram of t") + 
+  geom_histogram(aes(y=..density..),
+                 colour="black",
+                 fill="white",
+                 bins=100) + 
+  geom_vline(aes(xintercept = mean_t, color = "red"),size=1.5)
 ```
 The test statistic*T* is around -0.267, which is smaller than 0. So the lottery is random. We used following calculation to estimate the p-value: 
 $$\hat{p} =\frac{\sum T(X) \geqslant 0}{B}$$
@@ -107,10 +117,9 @@ Since p=value is larger than significant level $\alpha=0.05$, we cannot reject t
 
 ## 4. Tests the hypothesis
 
-Implement a function depending on *data* and *B* that tests the hypothesis
-- *H0*: Lottery is random versus
+Implement a function depending on *data* and *B* that tests the hypothesis:
 
-versus
+- *H0*: Lottery is random versus
 
 - *H1*: Lottery is non–random
 
@@ -135,6 +144,7 @@ stat <- permutation_test(B=2000, data1)
 
 stat0 <- stats(data1,1:nrow(data1))
 print (c( stat0 ,mean(abs(stat)>=abs(stat0)) ))
+
 ```
 Since the the p-value is still larger than 0.05, we cannot reject the null hypothesis either.
 
@@ -174,16 +184,17 @@ fun <- function(a){
 
 fun(a=0.1)
 ```
-Since the p-value here is even smaller than 0.01, so we can reject the null hypothesis directly, which means the data is non-random.
+Since the p-value here is still larger than 0.05 (even closer), so we cannot reject the null hypothesis directly.
 
-```{r}
+```{r echo=F}
 ## step (c)
 result <- sapply(seq(0.2,10,0.1), fun)
 result<- data.frame(alpha=seq(0.2,10,0.1), p_value=result[2,])
 ggplot(data = result,aes(x=alpha,y=p_value))+
   geom_line()
 ```
-It seems that when $\alpha$ is larger, our test statistics is efficient to reject our null hypothesis (non-random).
+
+Based on the formula, $\alpha$ can represent the impact strongness from X=Day_of_year to Y=Draft_No. According to the plot above, it seems that when $\alpha$ is larger, our test statistics would be more efficient to reject our null hypothesis (non-random), which is reasonable. 
 
 \newpage
 # Question 2: Bootstrap, jackknife and confidence intervals
@@ -284,7 +295,6 @@ $$ J(T)= \frac{1}{n}\sum_{i=1}^{n}T_i^* $$
 # other jackknife function
 # library(bootstrap)
 # res2 <- jackknife(x=data2$Price,stat1)
-# mean(res2$jack.values)
 
 n = nrow(data2)
 constant = 1/(n*(n-1))
@@ -303,17 +313,20 @@ Var_T_jackknife
 table = data.frame(boostrap = var_boot, jackknife= Var_T_jackknife)
 knitr::kable(table)
 ```
+
 It seems that bootstrap here is better than jackknife because of its smaller variance.
 
 
 ## 4. Compare the confidence intervals 
-Compare the confidence intervals obtained with respect to their length and the location of the estimated mean in these intervals.
+
+obtained with respect to their length and the location of the estimated mean in these intervals.
 
 ```{r echo=FALSE}
 percent<-ci$percent
 bca<-ci$bca
 norm<-ci$normal
 intervals = rbind(percent[4:5],bca[4:5],norm[2:3])
+
 Len.CI=intervals[,2]-intervals[,1]
 Esti.mean=intervals[,1]+Len.CI/2
 table2 <- data.frame(Len.CI,Esti.mean)
