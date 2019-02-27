@@ -9,7 +9,7 @@ output:
 
 ```{r setup, include=FALSE}
 Sys.setlocale(locale = "English")
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, out.height = "300px")
 # libraries used in this lab
 library(ggplot2)
 #install.packages("boot") # to create booststarp
@@ -20,20 +20,18 @@ library(boot)
 
 #Question 1: Hypothesis testing
 
-In 1970, the US Congress instituted a random selection process for the military draft. All 366 possible birth dates were placed in plastic capsules in a rotating drum and were selected one by one. The first date drawn from the drum received draft number one, the second date drawn received draft number two, etc. Then, eligible men were drafted in the order given by the draft number of their birth date. In a truly random lottery there should be no relationship between the date and the draft number. Your task is to investigate whether or not the draft numbers were randomly selected. The draft numbers (`Y=Draft No`) sorted by day of year (`X=Day of year`) are given in the file *lottery.xls*.
+In 1970, the US Congress instituted a random selection process for the military draft. All 366 possible birth dates were placed in plastic capsules in a rotating drum and were selected one by one. The first date drawn from the drum received draft number one, the second date drawn received draft number two, etc. Then, eligible men were drafted in the order given by the draft number of their birth date. In a truly random lottery there should be no relationship between the date and the draft number. Your task is to investigate whether or not the draft numbers were randomly selected. The draft numbers (`Y=Draft_No`) sorted by day of year (`X=Day_of_year`) are given in the file *lottery.xls*.
 
-## 1. Make a scatterplot of Y versus X 
-and conclude whether the lottery looks random.
+## 1. Make a scatterplot 
+of Y versus X and conclude whether the lottery looks random.
 
 Scatterplot of Y versus X
 ```{r, echo=FALSE}
 # scatterplot 
 rm(list=ls())
 data1 = read.csv2("lottery.csv")
-Y = data1$Draft_No
-X = data1$Day_of_year
 
-plot_11 = ggplot(data = data1,aes(x = X, y = Y)) + 
+plot_11 = ggplot(data = data1,aes(x = Day_of_year, y = Draft_No)) + 
   geom_point(aes(color = "red")) 
 plot_11
 ```
@@ -46,121 +44,146 @@ $\hat{Y}$ of the expected response as a function of $X$ by using a loess smoothe
 
 Scatterplot of $\hat{Y}$ versus X
 ```{r, echo=FALSE}
-plot_12 = plot_11 + 
-  # `geom_smooth()` using method = 'loess' and formula 'y ~ x' - that´s correct
+# loess(formula = Draft_No~Day_of_year, data = data1)
+
+plot_11 + 
+  # geom_smooth()` using method = 'loess' and formula 'y ~ x'
   geom_smooth(method ="loess", formula = y~x, aes(color="blue")) +
   scale_color_discrete(labels=c("expected response",
                                 "scatter points")
                        )
-plot_12
 ```
 
 It does look like the loess smoother decreases slowly after X (= Day of year) passes number 100. This could mean the draft is not truly random. 
 
-## 3. To check whether the lottery is random, it is reasonable to use test statistics
+## 3. Check whether the lottery is random
+To check whether the lottery is random, it is reasonable to use test statistics
 
 $$ T = \frac{\hat{Y}(X_b)-\hat{Y}(X_a)}{X_b - X_a}, ~~\rm where~~  X_b = \rm argmax_X Y(X), ~\  X_a = \rm argmin_X Y(X)  $$
 
 If this value is significantly greater than zero, then there should be a trend in the data and the lottery is not random. Estimate the distribution of $T$ by using a non–parametric bootstrap with $B = 2000$ and comment whether the lottery is random or not. What is the p–value of the test?
 
 ```{r}
-# use non parametric bootstrap 
-# need data = data1, statistic = loess & test stat, R = 200
+# use non-parametric bootstrap 
+# need data = data1, statistic = loess & test stat, R = 2000
 stats = function(data,vn){
-   data<-data[vn,]
-  # Y=Draft No & X=Day of year
+  data<-data[vn,]
+  # Y=Draft_No & X=Day_of_year
   # create the loess regression
   reg = loess(Draft_No ~ Day_of_year, data = data)
-  # get the min and max positions of x - for fit
-  X_b = which.max(reg$fitted)
-  X_a = which.min(reg$fitted)
-  # fit regression for x values
+  # the X which owns the max/min Y in original data
+  X_b = data$Day_of_year[which.max(data$Draft_No)]   
+  X_a = data$Day_of_year[which.min(data$Draft_No)]
+  # Y_hat(X)
   fit_X_b = reg$fitted[X_b]
   fit_X_a = reg$fitted[X_a]
   # the given test statistic
-  T_stat = (fit_X_b - fit_X_a) / (data$Day_of_year[X_b] - data$Day_of_year[X_a])
+  T_stat = (fit_X_b - fit_X_a) / (X_b-X_a)
   return(T_stat)
 }
 
 #bootstrap
-set.seed(311015)
+set.seed(123456)
 myboot = boot(data = data1, 
               statistic = stats,
               R = 2000)
-```
 
-```{r, echo=FALSE}
+# summary
+myboot
+
 # plot distribution
-b=plot(myboot, index = 1)
-
-# plot_13_data = data.frame("t" = myboot$t,
-#                           "index" = 1:length(myboot$t))
-# mean_t = mean(myboot$t)
-# 
-# plot_13 = ggplot(data = plot_13_data, aes(x = t)) + 
-#   ggtitle("Histogram of t") + 
-#   geom_histogram(aes(y=..density..),
-#                  colour="black",
-#                  fill="white",
-#                  bins=100) + 
-#   geom_vline(aes(xintercept = mean_t, color = "red"))
-# plot_13
+plot(myboot, index = 1)
 ```
-
-Here we are able to see the distribution is not around 0, the mean is -0.358. Which means the selection is not truly random.
-
-We used following calculation to estimate the p-value: 
+The test statistic*T* is around -0.267, which is smaller than 0. So the lottery is random. We used following calculation to estimate the p-value: 
 $$\hat{p} =\frac{\sum T(X) \geqslant 0}{B}$$
 
 ```{r,echo=FALSE}
 # calculate the p-value
-# lecture slide 11
-p_val = sum(myboot$t >= 0)/length(myboot$t)
+# null hypothesis: T>=0, hv tendancy
+p_val = mean(myboot$t>=0, na.rm = TRUE)
 p_val
 ```
+Since p=value is larger than significant level $\alpha=0.05$, we cannot reject the null hypothesis (it is not random).
 
 ## 4. Tests the hypothesis
 
-Implement a function depending on *data* 
-and *B* that tests the hypothesis
-
+Implement a function depending on *data* and *B* that tests the hypothesis
 - *H0*: Lottery is random versus
+
+versus
 
 - *H1*: Lottery is non–random
 
 by using a permutation test with statistics `T`. The function is to return the p–value of this test. Test this function on our data with `B = 2000.
 
-
-```{r, echo=FALSE, eval=FALSE}
-# code from the lecture - slide 12.a
-mouse<-read.csv2("mouse.csv")
-B=1000
-stat=numeric(B)
-n=dim(mouse)[1]
-for(b in 1:B){
-  Gb=sample(mouse$Group, n)
-
-  stat[b]=mean(mouse$Value[Gb=='z'])-mean(mouse$Value[Gb=='y'])
+```{r}
+set.seed(123456)
+permutation_test <- function(B, data1){
+  n = dim(data1)[1]
+  stat = numeric(B)
+  for(b in 1:B){
+    # randoming X
+    Gb = sample(data1$Day_of_year, n)
+    data11 <- data1
+    data11$Day_of_year <- Gb
+    stat[b] <- stats(data11,1:n)
+  }
+  return(stat)
 }
-stat0=mean(mouse$Value[mouse$Group=='z'])-mean(mouse$Value[mouse$Group=='y'])
-print(c(stat0,mean(stat>stat0)))
-## [1] 30.63492  0.12700
+
+stat <- permutation_test(B=2000, data1)
+
+stat0 <- stats(data1,1:nrow(data1))
+print (c( stat0 ,mean(abs(stat)>=abs(stat0)) ))
 ```
+Since the the p-value is still larger than 0.05, we cannot reject the null hypothesis either.
+
+## 5.Make a crude estimate
+
+Make a crude estimate of the power of the test constructed in Step 4:
+
+(a) Generate (an obviously non{random) dataset with n = 366 observations by using same X as in the original data set and $Y (x) = \max(0, \min(\alpha x + \beta, 366))$, where $\alpha = 0,1$
+and $\beta\sim N(183, sd = 10)$.
+
+(b) Plug these data into the permutation test with B = 200 and note whether it was
+rejected.
+
+(c) Repeat Steps 5a-5b for $\alpha = 0.2,0.3,...,10$.
+
+What can you say about the quality of your test statistics considering the value of the
+power?
 
 ```{r}
-B = 2000
-stat = numeric(B)
-n = dim(data1)[1]
-for(b in 1:B){
-  Gb=sample(data1$Day_of_year, n)
+fun <- function(a){
+  ## step (a)
+  n <- 366
+  b <- rnorm(n, mean=183, sd = 10)
+  X <- data1$Day_of_year
+  Y <- sapply(1:n,function(i){
+    t <- min(a*X[i]+b[i],366)
+    t <- max(0,t)
+  })
+  data15 <- data.frame(Day_of_year=X,Draft_No=Y)
   
-
+  ## step (b)
+  stat <- permutation_test(B=200, data15)
   
-  stat[b]=mean(mouse$Value[Gb=='z'])-mean(mouse$Value[Gb=='y'])
+  stat0 <- stats(data15,1:n)
+  return(c( stat0 ,mean(abs(stat)>=abs(stat0)) ))
 }
+
+fun(a=0.1)
 ```
+Since the p-value here is even smaller than 0.01, so we can reject the null hypothesis directly, which means the data is non-random.
 
-
+```{r}
+## step (c)
+result <- sapply(seq(0.2,10,0.1), fun)
+result<- data.frame(alpha=seq(0.2,10,0.1), p_value=result[2,])
+ggplot(data = result,aes(x=alpha,y=p_value))+
+  geom_line()
+```
+It seems that when $\alpha$ is larger, our test statistics is efficient to reject our null hypothesis (non-random).
 
 \newpage
 # Question 2: Bootstrap, jackknife and confidence intervals
@@ -175,16 +198,15 @@ The data you are going to continue analyzing is the database of home prices in A
 ## 1. Plot the histogram of Price. 
 Does it remind any conventional distribution? Compute the mean price.
 
-```{r, echo=FALSE, warning=FALSE, out.height="300px", out.width="350px"}
+```{r, echo=FALSE, warning=FALSE, out.height="300px"}
 # calculate the mean of the price
 price_mean = mean(data2$Price) # 1080.473
 
-cols <- c("Mean"="#FF6633")
-# create the plot - hist + distribution + mean
+# create the plot - hist + distribution + mean  
 ggplot(data = data2, aes(x = Price)) + 
   #geom_histogram(color = "#33CCFF", fill = "#33CCFF") + 
   ggtitle("Histogram of Price") + 
-  geom_vline(aes(xintercept = price_mean, color = "Mean")) + 
+  geom_vline(aes(xintercept = price_mean, color = "Mean"),size=1.5) + 
   geom_histogram(aes(y=..density..),
                  colour="black",
                  fill="white",
@@ -193,120 +215,113 @@ ggplot(data = data2, aes(x = Price)) +
   # geom_density(kernel = "poisson") create a possion distribution
 ```
 
-The present distribution looks like a possion distribution. 
+The present distribution looks like a possion or gamma distribution. 
 
 The mean of the price is:
 ```{r}
 price_mean
 ```
 
+## 2. Bootstrap
 
-```{r, echo=FALSE, eval=FALSE}
-# create a possion distribution
-x = 540:2150 # min und max
-pdf_poisson = dpois(x, lambda = 6)
+Estimate the distribution of the mean price
+of the house using bootstrap. 
+Determine the bootstrap bias-correction and the variance of the mean price. Compute a 95% confidence interval for the mean price using bootstrap percentile, bootstrap BCa, and first-order normal approximation.
 
-data_possion = data.frame("x" = x,
-                          "pdf_poisson" = pdf_poisson)
-
-ggplot(data = data_possion, aes(x, pdf_poisson)) + 
-  geom_point()
-```
-
-## 2. Estimate the distribution of the mean price of the house using bootstrap. 
-Determine the bootstrap bias-correction and the variance of the mean price. Compute a 95% confidence interval for the mean price using bootstrap percentile, bootstrap BCa, and first-order normal approximation
-
-```{r, echo=FALSE, eval=FALSE}
-# hits from the lab paper
-Hint: boot(),boot.ci(),plot.boot(),print.bootci()
-```
-
-```{r, echo=FALSE}
-# code from slide 17
-stat1 <- function(data,vn){
-    data<-as.data.frame(data[vn,])
-    res<-lm(Response~Predictor,data)
-    res$coefficients[2]
-}
-x<-rnorm(100)
-data<-cbind(Predictor=x, Response=3+2*x+rnorm(length(x), sd=0.5))
-res<-boot(data,stat1,R=1000)
-print(boot.ci(res))
-```
-
-
-Estimate the distribution of the mean price of the house using bootstrap
+Estimate the distribution of the mean price of the house using bootstrap:
 ```{r}
 # function - estiamte mean
-stat1 <- function(data,vn){
-    data = as.data.frame(data[vn,])
-    return(mean(data$Price))
+stat1 <- function(vec,vn){
+    return(mean(vec[vn]))
 }
+B=1000
 
 set.seed(123456)
-res1 = boot(data2, stat1, R=1000)
+res1 = boot(data2$Price, stat1, R=B)
 res1
 ```
 
-```{r, echo=FALSE}
-# 95% confidence interval mean price 
-# --- bootstrap percentile, bootstrap BCa, and first–order normal approximation
-print(boot.ci(res1)) # , type = c("perc", "bca", "basic")
-
-# plot
-plot(res1)
-
-# the two functions does not work
-plot.boot(res)
-print.bootci(res)
-
-```
-
-Uncertainty estimation: variance of estimator
-- Bootstrap
-
-$$\widehat{Var[T(.)]} = \frac{1}{B-1} \sum_{i=1}^B(T(D_i^*) - \overline{T(D^*)})^2$$
-
+According to the slide, we know that the bias-corrected estimator is
+$$T_1:=2T(D)-\frac{1}{B}\sum^{B}_{i=1}T^{*}_i ~,$$
+and variance of estimator by bootstrap is
+$$\widehat{Var[T(.)]} = \frac{1}{B-1} \sum_{i=1}^B(T(D_i^*) - \overline{T(D^*)})^2.$$
+Determine the bootstrap bias-correction and the variance of the mean price:
 ```{r}
-# Uncertainty estimation: variance of estimator
-# - Bootstrap
-stat2 = function(data, vn){
-  data = data[vn]
-  result = (1/(length(data) -1)) * sum((data - mean(data))^2)
-  return(result)
-}
+# bias correcred estimator
+2*res1$t0-mean(res1$t)
 
-set.seed(123456)
-res2 = boot(res1$t, stat2, R=1000)
-res2
+# variance of mean price (output of statistic)
+var_boot <- 1/(B-1)*sum((res1$t-mean(res1$t))^2 )
+var_boot
 ```
 
+Compute a 95% confidence interval for the mean price using bootstrap percentile, bootstrap BCa, and first-order
+normal approximation
+```{r, echo=FALSE}
 
-##3. Estimate the variance of the mean price using the jackknife 
-and compare it with the
+# default is a 95% confidence interval
+ci <- boot.ci(res1, type = c("perc", "bca", "norm"))
+print(ci) 
+
+plot(res1)
+```
+
+## 3. Jackknife
+
+Estimate the variance of the mean price using the jackknife and compare it with the
+bootstrap estimate.
+
 - Jackknife (n = B)
 
-$$\widehat{Var[T(.)]} = \frac{1}{n(n-1)}\sum_{i=1}^n ((\rm T_i^*)- \rm J(T))^2, \\ \rm where \  T_i^* = nT(D)-(n-1)T(D_i^*) \\ and \  J(T)= \frac{1}{n}\sum_{i=1}^{n}T_i^* $$
+$$\widehat{Var[T(.)]} = \frac{1}{n(n-1)}\sum_{i=1}^n ((\rm T_i^*)- \rm J(T))^2,$$
+where 
+$$ T_i^* = nT(D)-(n-1)T(D_i^*)$$
+and 
+$$ J(T)= \frac{1}{n}\sum_{i=1}^{n}T_i^* $$
 
 
 ```{r}
+# other jackknife function
+# library(bootstrap)
+# res2 <- jackknife(x=data2$Price,stat1)
+# mean(res2$jack.values)
+
 n = nrow(data2)
 constant = 1/(n*(n-1))
-T_i_star = c()
-for (i in 1:n) {
-  T_i_star[i] = n * mean(data2$Price) - (n-1) * mean(data2[-i,1])
-}
+
+T_i_star = sapply(1:n, function(i){
+  n * mean(data2$Price) - (n-1) * mean(data2[-i,1])
+})
+
 J_T = (1/n) * sum(T_i_star)
+
 Var_T_jackknife = constant * sum((T_i_star - J_T)^2)
+Var_T_jackknife
 ```
 
-## 4. Compare the confidence intervals obtained 
-with respect to their length and the location of the estimated mean in these intervals.
+```{r echo=FALSE}
+table = data.frame(boostrap = var_boot, jackknife= Var_T_jackknife)
+knitr::kable(table)
+```
+It seems that bootstrap here is better than jackknife because of its smaller variance.
 
-```{r}
 
+## 4. Compare the confidence intervals 
+Compare the confidence intervals obtained with respect to their length and the location of the estimated mean in these intervals.
+
+```{r echo=FALSE}
+percent<-ci$percent
+bca<-ci$bca
+norm<-ci$normal
+intervals = rbind(percent[4:5],bca[4:5],norm[2:3])
+Len.CI=intervals[,2]-intervals[,1]
+Esti.mean=intervals[,1]+Len.CI/2
+table2 <- data.frame(Len.CI,Esti.mean)
+rownames(table2) <- c("percent","bca","norm")
+knitr::kable(table2)
 ```
 
+On the one hand, percentile has the largest confidence intervals, but BCa and normal approximation have similar confidence intervals. On the other hand, the interval-means of percentile and BCa are similar ($\approx 1084$), but of normal approximation is around 1079.
 
 
 
