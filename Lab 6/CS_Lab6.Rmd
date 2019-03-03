@@ -1,0 +1,277 @@
+---
+title: "Computer Lab 6 Computational Statistics"
+author: "Phillip H??lscher"
+date: "1 3 2019"
+output: 
+  pdf_document:
+    toc: true 
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r,echo=FALSE}
+# library used in this lab
+library(ggplot2) # ex 2.1 - time series plot
+library(gridExtra) 
+```
+
+
+\newpage
+
+# Question 1: Genetic algorithm
+```{r, echo=FALSE}
+# clean the environment
+rm(list=ls())
+```
+
+
+In this assignment, you will try to perform one-dimensional maximization with the help of a genetic algorithm.
+
+## 1. Define the function
+
+$$  f(x):= \frac{x^2}{e^x}- 2exp(\frac{-(9sin \  x)}{x^2+x+1} )$$
+
+```{r}
+# define the function
+func = function(x){
+  return((x^2/exp(x)) - 2 * exp(-(9 * sin(x))/ (x^2 +x +1)))
+}
+```
+
+## 2. Define the function `crossover()`: 
+for two scalars *x* and *y* it returns their "kid as (x+y)/2.
+
+```{r}
+# crossover function
+crossover = function(x,y){
+  kid = (x+y)/2
+  return(kid)
+}
+```
+
+## 3. Define the function 'mutate()' 
+that for a scalar x returns the result of the integer division
+x2 mod 30. (Operation mod is denoted in R as %%).
+
+```{r}
+# mutate function
+mutate = function(x){
+  return(x^2 %%30)
+}
+```
+
+## 4. Write a function that depends on the parameters `maxiter` and `mutprob` and:
+
+* (a) Plots function f in the range from 0 to 30. Do you see any maximum value?
+
+* (b) Defines an initial population for the genetic algorithm as $X = (0, 5, 10, 15, . . . , 30)$.
+
+* (c) Computes vector `Values` that contains the function values for each population point. 
+
+* (d) Performs `maxiter` iterations where at each iteration
+
+    + i. Two indexes are randomly sampled from the current population, they are further used as parents (use *sample()*).
+
+    + ii. One index with the smallest objective function is selected from the current population, the point is referred to as victim (use *order()*).
+
+    + iii. Parents are used to produce a new kid by crossover. Mutate this kid with probability *mutprob* (use *crossover()*, *mutate()*).
+
+    + iv. The victim is replaced by the kid in the population and the vector *Values* is updated.
+
+    + v. The current maximal value of the objective function is saved.
+
+
+* (e) Add the final observations to the current plot in another colour.
+
+```{r}
+# ex4
+# function that depends on the parameters `maxiter` and `mutprob`
+set.seed(1234567)
+func4 = function(maxiter, mutprob){
+#test
+# maxiter = 10
+# mutprob = 0.1
+  
+# ------ a) #### -  Plots function f in the range
+# create data for ggplot
+range = c(0:30)
+func_range = func(0:30)
+# create plot data
+plot_data1a = data.frame("func_range" = func_range,
+                        "range" = range)
+plot1a = ggplot(data = plot_data1a, aes(x = range, y = func_range)) + 
+  geom_line() +
+  #geom_point()+
+  ggtitle("f in the range from 0 to 30") + xlab("range") + ylab("f")
+plot1a
+# ------ b) #### - initial population
+population = seq(0,30, 5)
+
+# ------ c) #### - Computes vector Values
+Values = func(population)
+max_objfunc = c()
+# ------ d) #### - Performs maxiter
+for (i in 1:maxiter) {
+  # ------ d) ##### ------ i) ####
+  index1 = sample(population,1)
+  index2 = sample(population,1)
+  parent = c(index1, index2)
+# ------ d) ##### ------ ii) ####
+  smalles_obfunc = order(Values)[1]
+  victim = population[smalles_obfunc]
+# ------ d) ##### ------ iii) ####
+  new_kid = crossover(parent[1],parent[2])
+  mutate_probability = runif(1,min = 0, max = 1)
+  if(mutate_probability <= mutprob){ # >= OR <=
+    new_kid = mutate(new_kid)
+  } 
+# ------ d) ##### ------ iv) ####
+  replace_index = which(population == victim)
+  population[replace_index] = new_kid
+  Values = func(population)
+# ------ d) ##### ------ v) ####
+  max_objfunc[i] = max(Values)
+}
+# ------ e) #### - Add the final observations to the current plot in another colour
+  #plot data
+  plot_data1b = data.frame("Values" = Values,
+                           "Population" = population)
+  plot_data1b = plot_data1b[order(plot_data1b$Population),]
+  col = c("Final observations" = "red")
+  plot1b = plot1a + geom_point(data = plot_data1b, aes(x = Population, y = Values, colour = "Final observations"))
+  plot1b
+  return(plot1b)
+}
+
+```
+
+```{r, echo=FALSE, eval=FALSE}
+
+#### TEST -----------
+#i. Two indexes are randomly sampled from the current population, they are further used as parents (use sample()).
+
+sample(population, 1)
+
+#ii. One index with the smallest objective function is selected from the current population, the point is referred to as victim (use order()).
+
+order(parent)
+
+# iii. Parents are used to produce a new kid by crossover. Mutate this kid with probability mutprob (use crossover(), mutate()).
+
+new_kid = crossover(parent[1],parent[2])
+probability = runif(1,0,1)
+mutate(new_kid)
+
+# iv. The victim is replaced by the kid in the population and the vector Values is updated.
+which(population == 25)
+
+# v. The current maximal value of the objective function is saved.
+max_objfunc = max(Values)
+
+```
+
+5. Run your code with different combinations of **maxiter**= 10, 100 and **mutprob**= 0.1, 0.5, 0.9. Observe the initial population and final population. Conclusions?
+
+```{r,echo=FALSE}
+maxite = c(10,100)
+mutpro = c(0.1,0.5,0.9)
+# # amount of objects
+# #amount_of_objects = length(maxite) * length(mutpro)
+# all_resutls = list()
+# counter = 1
+# for (i in maxite) {
+#   for (j in mutpro) {
+#     # print(maxite[i])
+#     # print(mutpro[j])
+#     # print(counter)
+#     all_resutls[counter] = func4(i,j)
+#     counter = counter +1
+#   }
+# }
+plot1 = func4(10,0.1) + ggtitle("maxiter = 10 & mutpro = 0.1")
+plot2 = func4(10,0.5) + ggtitle("maxiter = 10 & mutpro = 0.5")
+plot3 = func4(10,0.9) + ggtitle("maxiter = 10 & mutpro = 0.9")
+plot4 = func4(100,0.1) + ggtitle("maxiter = 100 & mutpro = 0.1")
+plot5 = func4(100,0.5) + ggtitle("maxiter = 100 & mutpro = 0.5")
+plot6 = func4(100,0.9) + ggtitle("maxiter = 100 & mutpro = 0.9")
+
+final_plot = grid.arrange(plot1,plot2,plot3,plot4,plot5,plot6, ncol=2)
+final_plot
+```
+
+
+
+
+
+\newpage
+#Question 2: EM algorithm
+
+```{r, echo=FALSE}
+# clean the environment
+rm(list=ls())
+# load the data
+data2 = read.csv("physical1.csv")
+```
+
+The data file *physical.csv* describes a behavior of two related physical processes $Y = Y (X) and Z = Z(X)$.
+
+
+## 1. Make a time series plot 
+describing dependence of $Z$ and $Y$ versus $X$. Does it seem that two processes are related to each other? What can you say about the variation of the response values with respect to $X$?
+
+```{r, echo=FALSE}
+# Z & Y versus X
+col = c("Y" = "#FFC312", "Z" = "#0652DD")
+
+# ------- separate plots - together grid.arrange
+# # create Y on X
+# plot1_Y = ggplot(data = data2, aes(x = X)) +
+#   geom_line(aes(y = Y, colour = "Y")) + 
+#   ggtitle("Z & Y versus X") + ylab("Z & Y")
+# 
+# # create Z on X
+# plot1_Z = ggplot(data = data2, aes(x = X)) +
+#   geom_line(aes(y = Z, colour = "Z")) + 
+#   ggtitle("Z & Y versus X") + ylab("Z & Y")
+# 
+# grid.arrange(plot1_Y,plot1_Z,nrow=2)
+
+# create Y on X
+plot1_YZ = ggplot(data = data2, aes(x = X)) +
+  geom_line(aes(y = Y, colour = "Y")) + 
+  geom_line(aes(y = Z, colour = "Z")) + 
+  ggtitle("Z & Y versus X") + ylab("Z & Y")
+plot1_YZ
+
+```
+
+It does not seem the two processes are related to each other.
+In the beginning, the Z value does sleep off more than double of Y. 
+Also, the movements of the processes rarely lie on top of each other. 
+We can also recognize the Z values are incomplete in some parts, the curve has gaps. 
+
+- variation of the response values with respect to X?
+
+
+## 2. Note that there are some missing values of Z in the data 
+which implies problems in estimating models by maximum likelihood. Use the following model
+
+$$ Y_i \sim \rm exp(X_i/\lambda), \\  Z_i \sim \rm exp(X_i/2\lambda)$$
+
+where $\lambda$ is some unknown parameter.
+*The goal is to derive an EM algorithm that estimates $\lambda$.*
+
+
+```{r}
+
+```
+
+
+
+\newpage
+
+# Appendix
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+```
