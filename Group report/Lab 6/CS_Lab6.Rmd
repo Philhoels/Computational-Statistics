@@ -210,54 +210,51 @@ where $\lambda$ is some unknown parameter.
 *The goal is to derive an EM algorithm that estimates $\lambda$.*
 
 We know the probability density functions (PDF) of $Z$ are
-$$f_{Z_i}(t)=\frac{X_i}{2\lambda}e^{-\frac{X_i}{2\lambda}t}.$$
+$$f(Z_i)=\frac{X_i}{2\lambda}e^{-\frac{X_i}{2\lambda}Z_i}.$$
 Since we consider that all the $X_i$ are independent and we can thereby get the PDF their joint distributions, which is
-$$f_{Z}(t)=\frac{\prod X_i}{2\lambda}e^{-\frac{\sum X_i}{2\lambda}t}.$$
+$$L(Z)=\frac{\prod X_i}{2\lambda}e^{-\frac{\sum X_i}{2\lambda}\sum Z_i}.$$
 Thus, their log-likelihoods should be 
-$$ \log(Z|X,\lambda)=\frac{\sum \ln X_i}{\ln(2\lambda)}-\frac{\sum X_i}{2\lambda}.$$
-
+$$ \log(Z|X,\lambda)=\frac{\sum \ln X_i}{\ln(2\lambda)}-\frac{\sum X_i\sum Z_i}{2\lambda}.$$
+By partial derivativing with $\lambda$, we get
+$$
+\begin{aligned}
+\nabla\lambda =& 2\cdot \frac{1}{2\lambda}\frac{\sum \ln X_i}{(\ln(2\lambda))^2}-(-2)\cdot \frac{-\sum X_i\sum Z_i}{(2\lambda)^2}\\\\
+=&\frac{\sum \ln X_i}{\lambda\ln^2(2\lambda)}-\frac{\sum X_i\sum Z_i}{2\lambda^2}~~.
+\end{aligned}
+$$
 
 # 3.Implement this algorithm in R
- use $\lambda_0=100$ and convergence criterion "stop if the change in $\lambda$ is less than 0:001". What is the optimal $\lambda$ and how many iterations were required to
-compute it?
+ use $\lambda_0=100$ and convergence criterion "stop if the change in $\lambda$ is less than 0:001". What is the optimal $\lambda$ and how many iterations were required to compute it?
 
 ```{r}
-# yloglik <- function(X, lda){sum(log(X))/log(lda)-sum(X)/lda}
-zloglik <- function(X, lda){sum(log(X))/log(2*lda)-sum(X)/(2*lda)}
+X <- data2$X
+loglik <- function(Y, lda){sum(log(X))/(log(lda))-sum(X)*sum(Y)/(lda)}
 
-
-EM <- function(X, eps, kmax){
-    Xobs <- X[!is.na(X)]
-    Xmiss <- X[is.na(X)]
-    n <- length(c(Xobs, Xmiss))
-    r <- length(Xobs)
-
+EM <- function(Y, eps, kmax){
+  # browser()
+  
+    # initial state
     k <- 1
     ldak <- 100
-    
-    # initial state
-    llvalprev<-zloglik(Xobs, ldak)
-    llvalcurr<-llvalprev+10+100*eps   #?????
+    llvalprev<-loglik(Y, ldak)
+    llvalcurr<-llvalprev+10+100*eps  # make some difference
     print(c(ldak, llvalcurr))
 
     while ((abs(llvalprev-llvalcurr)>eps) && (k<(kmax+1))){
-    	llvalprev<-llvalcurr
-    	## E-step
-    	EY<-sum(Xobs)+(n-r)*muk
-    	EY2<-sum(Yobs^2)+(n-r)*(muk^2+sigma2k)
-    
-    	## M-step
-    	muk<-EY/n
-    	sigma2k<-EY2/n-muk^2
+    	llvalprev <- llvalcurr
+
+    	gradient <- -sum(log(X))/(ldak*(log(ldak)^2))+sum(X)*sum(Y)/(ldak^2)
+    	ldak <- ldak-gradient
     
     	## Compute log-likelihood
-    	llvalcurr<-floglik(Yobs,muk,sigma2k,r)
+    	llvalcurr<-loglik(Y,ldak)
     	k<-k+1
     
-    	print(c(muk,sigma2k,llvalcurr))
+      print(c(ldak, llvalcurr))
     }
 }
 
+EM(Y, 0.001, 1000)
 ```
 
 
