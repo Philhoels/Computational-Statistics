@@ -8,7 +8,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, out.height = "300px")
+knitr::opts_chunk$set(echo = TRUE, out.height = "280px")
 ```
 
 ```{r,echo=FALSE}
@@ -176,15 +176,15 @@ describing dependence of $Z$ and $Y$ versus $X$. Does it seem that two processes
 
 ```{r, echo=FALSE}
 # Z & Y versus X
-col = c("Y" = "#FFC312", "Z" = "#0652DD")
+col = c("Y" = "#F8766D", "Z" = "#619CFF")
 
-data21 = reshape2::melt(data2, id.vars="X")
-ggplot(data = data21, aes(x = X,y=value,color=variable)) +
-  geom_line() +
-  ggtitle("Z & Y versus X") + 
+plot21 <- ggplot(data = data2) +
+  geom_line(aes(x = X, y=Y,color = "Red")) +
+  geom_line(aes(x = X, y=Z,color = "Blue")) +
+  ggtitle("Z & Y versus X") +
   ylab("Z & Y")+
-  scale_color_discrete("")
-
+  scale_color_discrete(labels=c("Y","Z"))
+plot21
 ```
 
 ```{r}
@@ -210,16 +210,38 @@ where $\lambda$ is some unknown parameter.
 *The goal is to derive an EM algorithm that estimates $\lambda$.*
 
 We know the probability density functions (PDF) of $Z$ are
-$$f(Z_i)=\frac{X_i}{2\lambda}e^{-\frac{X_i}{2\lambda}Z_i}.$$
-Since we consider that all the $X_i$ are independent and we can thereby get the PDF their joint distributions, which is
-$$L(Z)=\frac{\prod X_i}{2\lambda}e^{-\frac{\sum X_i}{2\lambda}\sum Z_i}.$$
-Thus, their log-likelihoods should be 
-$$ \log(Z|X,\lambda)=\frac{\sum \ln X_i}{\ln(2\lambda)}-\frac{\sum X_i\sum Z_i}{2\lambda}.$$
-By partial derivativing with $\lambda$, we get
+$$f(Y_i)=\frac{X_i}{\lambda}e^{-\frac{X_i}{\lambda}Y_i},\\f(Z_i)=\frac{X_i}{2\lambda}e^{-\frac{X_i}{2\lambda}Z_i}.$$
+Since we consider that all the $X_i$ are independent and we can thereby get the PDF of a joint distribution, which is
 $$
 \begin{aligned}
-\nabla\lambda =& 2\cdot \frac{1}{2\lambda}\frac{\sum \ln X_i}{(\ln(2\lambda))^2}-(-2)\cdot \frac{-\sum X_i\sum Z_i}{(2\lambda)^2}\\\\
-=&\frac{\sum \ln X_i}{\lambda\ln^2(2\lambda)}-\frac{\sum X_i\sum Z_i}{2\lambda^2}~~.
+\mathcal{L}(\lambda|Y,Z)=&\prod(\frac{X_i}{\lambda}e^{-\frac{X_i}{\lambda}Y_i})~\cdot~ \prod(\frac{ X_i}{2\lambda}e^{-\frac{X_i}{2\lambda}Z_i})\\\\
+=&\frac{\prod X_i}{\lambda^n}e^{-\frac{\sum X_i Y_i}{\lambda}}~\cdot~ \frac{\prod X_i}{2^n\lambda^n}e^{-\frac{\sum X_i Z_i}{2\lambda}}~.
+\end{aligned}
+$$
+Thus, the log-likelihood should be 
+$$ \mathcal l(\lambda|Y,Z)=\prod (\ln X_i)-n\ln\lambda-\frac{\sum X_iY_i}{\lambda}+\prod(\ln X_i)-n\ln(2\lambda)-\frac{1}{2\lambda}\sum X_i Z_i.$$
+
+### Expectation
+Estimating the expected value for the miss data by the other data provided in last iterations. Additionally, we replace the miss data with the expected value of $Z$.
+$$
+\begin{aligned}
+Q(\lambda,\lambda_k)=&E[\mathcal{l}(\lambda|Y,Z)|\lambda_k,Y,Z]\\\\
+=\prod &(\ln X_i)-n\ln\lambda_k-\frac{\sum X_iY_i}{\lambda_k}+\prod(\ln X_i)-n\ln(2\lambda_k)-\frac{1}{2\lambda_k}[{\sum_{obs} X_i Z_i}+\sum_{miss}X_i\frac{2\lambda_{k-1}}{X_i}]\\\\
+=2\prod &(\ln X_i)-n\ln\lambda_k-\frac{\sum X_iY_i}{\lambda_k}-n\ln(2\lambda_k)-\frac{1}{2\lambda_k}{\sum_{obs} X_i Z_i}-\frac{1}{\lambda_k}\sum_{miss}\lambda_{k-1}.
+\end{aligned}
+$$
+
+### maximization 
+To obtain the maximum likelihood estimate of $\lambda$, we need to solve that the partial erivative equals 0.
+$$
+\begin{aligned}
+\nabla\lambda = -\frac{2n}{\lambda_k}+\frac{\sum X_i Y_i}{\lambda_k^2}+\frac{1}{2\lambda_k^2}\sum_{obs} X_i Z_i+\frac{1}{\lambda_k^2}\sum_{miss}\lambda_{k-1}=0
+\end{aligned}
+$$
+
+$$
+\begin{aligned}
+\lambda = \frac{1}{4n}(2\sum X_i Y_i+\sum_{obs}X_i Z_i+2\sum_{miss} \lambda_{k-1})
 \end{aligned}
 $$
 
@@ -227,39 +249,59 @@ $$
  use $\lambda_0=100$ and convergence criterion "stop if the change in $\lambda$ is less than 0:001". What is the optimal $\lambda$ and how many iterations were required to compute it?
 
 ```{r}
-X <- data2$X
-loglik <- function(Y, lda){sum(log(X))/(log(lda))-sum(X)*sum(Y)/(lda)}
-
-EM <- function(Y, eps, kmax){
+EM <- function(data2, eps, kmax=500, lda){
+  X <- data2$X
+  Y <- data2$Y
+  Z <- data2$Z
+  obs <- !is.na(Z)
+  n <- length(X)
+  m <- sum(is.na(Z))
   # browser()
-  
-    # initial state
-    k <- 1
-    ldak <- 100
-    llvalprev<-loglik(Y, ldak)
-    llvalcurr<-llvalprev+10+100*eps  # make some difference
-    print(c(ldak, llvalcurr))
+  loglik <- function(lda,ldap){
+    return(2*sum(log(X))-n*log(lda)-(X%*%Y)/lda-n*log(2*lda)
+           -(X[obs]%*%Z[obs])/(2*lda)-m*ldap/lda)
+  }
+  # initial state
+  k <- 0
+  llvalprev <- lda*10+10  # make some difference
+  llvalcurr <- lda
+  llk <- loglik(llvalcurr,llvalprev)
+  print(c(k, llvalcurr,llk))
 
-    while ((abs(llvalprev-llvalcurr)>eps) && (k<(kmax+1))){
-    	llvalprev <- llvalcurr
+  while ((abs(llvalprev-llvalcurr)>eps) && (k<(kmax+1))){
+    llvalprev <- llvalcurr
+    # since we already know how to get argmax lda
+    llvalcurr <- 1/(4*n)*(2*X%*%Y+X[obs]%*%Z[obs]+2*m*llvalprev)
 
-    	gradient <- -sum(log(X))/(ldak*(log(ldak)^2))+sum(X)*sum(Y)/(ldak^2)
-    	ldak <- ldak-gradient
-    
-    	## Compute log-likelihood
-    	llvalcurr<-loglik(Y,ldak)
-    	k<-k+1
-    
-      print(c(ldak, llvalcurr))
-    }
+  	k<-k+1
+    llk <- loglik(llvalcurr,llvalprev)
+    print(c(k, llvalcurr,llk))
+  }
+  return(llvalcurr)
 }
 
-EM(Y, 0.001, 1000)
+lda_opt <- EM(data2, eps=0.001, lda=100)
 ```
 
+## 4. Plot $E [Y ]$ and $E[Z]$ versus X
 
+in the same plot as Y and Z versus X. Comment whether the computed $\lambda$ seems to be reasonable.
 
 ```{r}
+X <- data2$X
+EY <- c(lda_opt)/X
+EZ <- 2*EY
+
+data24 <- cbind(data2,data.frame(EY=EY,EZ=EZ))
+ggplot(data = data24) +
+  geom_line(aes(x = X, y=Y, color="1")) +
+  geom_line(aes(x = X, y=Z, color="2")) +
+  geom_line(aes(x = X, y=EY, color="3"),linetype="dashed") +
+  geom_line(aes(x = X, y=EZ, color="4"),linetype="dashed") +
+  ggtitle("Z & Y versus X") + 
+  ylab("Z & Y")+
+  scale_color_discrete(labels=c("Y","Z","E[Y]","E[Z]"))
+
 
 ```
 
