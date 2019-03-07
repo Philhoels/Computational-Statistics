@@ -87,7 +87,7 @@ that depends on the parameters `maxiter` and `mutprob` and:
 
 * (e) Add the final observations to the current plot in another colour.
 
-```{r}
+```{r, echo=FALSE}
 #1.4a#############################################################
 dataa <- data.frame(x=0:30,f=func(0:30))
 plot1.4=ggplot(dataa,aes(x=x,y=f))+
