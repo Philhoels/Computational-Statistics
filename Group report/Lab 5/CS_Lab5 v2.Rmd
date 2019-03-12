@@ -9,7 +9,7 @@ output:
 
 ```{r setup, include=FALSE}
 Sys.setlocale(locale = "English")
-knitr::opts_chunk$set(echo = TRUE, out.height = "300px")
+knitr::opts_chunk$set(echo = TRUE, out.height = "270px")
 # libraries used in this lab
 library(ggplot2)
 #install.packages("boot") # to create booststarp
@@ -67,33 +67,34 @@ If this value is significantly greater than zero, then there should be a trend i
 # use non-parametric bootstrap 
 # need data = data1, statistic = loess & test stat, R = 2000
 stats = function(data,vn){
-  data<-data[vn,]
+  datatemp<-data[vn,]
   # Y=Draft_No & X=Day_of_year
-  # create the loess regression
-  reg = loess(Draft_No ~ Day_of_year, data = data)
+  # create the loess regression based on the sample data
+  reg = loess(Draft_No ~ Day_of_year, data = datatemp)
   # the X which owns the max/min Y in original data
   X_b = data$Day_of_year[which.max(data$Draft_No)]   
   X_a = data$Day_of_year[which.min(data$Draft_No)]
   # Y_hat(X)
-  fit_X_b = reg$fitted[X_b]
-  fit_X_a = reg$fitted[X_a]
+  fit_X_b = predict(reg,newdata=X_b)
+  fit_X_a = predict(reg,newdata=X_a)
   # the given test statistic
   T_stat = (fit_X_b - fit_X_a) / (X_b-X_a)
   return(T_stat)
 }
 
-#bootstrap
+#non-parametric bootstrap
 set.seed(123456)
+# dt=data1[order(data1$Draft_No),]
 myboot = boot(data = data1, 
               statistic = stats,
               R = 2000)
 
 # summary
 myboot
-
 # plot distribution
 # plot(myboot, index = 1)
-
+```
+```{r echo=FALSE}
 d <- data.frame(t=myboot$t)
 mean_t = mean(myboot$t,na.rm = TRUE)
 ggplot(data = d, aes(x = t)) + 
@@ -101,25 +102,27 @@ ggplot(data = d, aes(x = t)) +
   geom_histogram(aes(y=..density..),
                  colour="black",
                  fill="white",
-                 bins=100) + 
+                 bins=30) + 
   geom_vline(aes(xintercept = mean_t, color = "red"),size=1.5)
 ```
+
 The test statistic*T* is around -0.267, which is smaller than 0. So the lottery is random. We used following calculation to estimate the p-value: 
 $$\hat{p} =\frac{\sum T(X) \geqslant 0}{B}$$
 
-```{r,echo=FALSE}
+```{r}
 # calculate the p-value
 # null hypothesis: T>=0, hv tendancy
 p_val = mean(myboot$t>=0, na.rm = TRUE)
 p_val
 ```
-Since p=value is larger than significant level $\alpha=0.05$, we cannot reject the null hypothesis (it is not random).
+
+Here p-value is smaller than significant level $\alpha=0.05$, it also shows the data is random. So it seems the linear relation of lottery is not exist.
 
 ## 4. Tests the hypothesis
 
 Implement a function depending on *data* and *B* that tests the hypothesis:
 
-- *H0*: Lottery is random versus
+- *H0*: Lottery is random
 
 - *H1*: Lottery is non–random
 
@@ -141,18 +144,21 @@ permutation_test <- function(B, data1){
 }
 
 stat <- permutation_test(B=2000, data1)
-
 stat0 <- stats(data1,1:nrow(data1))
-print (c( stat0 ,mean(abs(stat)>=abs(stat0)) ))
+
+re = data.frame( stat0 ,mean(abs(stat)>=abs(stat0)) )
+colnames(re) <- c("average_statistic","p_value")
+re
 
 ```
-Since the the p-value is still larger than 0.05, we cannot reject the null hypothesis either.
+Since the the p-value is larger than 0.05, we cannot reject the null hypothesis. 
 
+\newpage
 ## 5.Make a crude estimate
 
 Make a crude estimate of the power of the test constructed in Step 4:
 
-(a) Generate (an obviously non{random) dataset with n = 366 observations by using same X as in the original data set and $Y (x) = \max(0, \min(\alpha x + \beta, 366))$, where $\alpha = 0,1$
+(a) Generate (an obviously non-random) dataset with n = 366 observations by using same X as in the original data set and $Y (x) = \max(0, \min(\alpha x + \beta, 366))$, where $\alpha = 0.1$
 and $\beta\sim N(183, sd = 10)$.
 
 (b) Plug these data into the permutation test with B = 200 and note whether it was
@@ -164,7 +170,8 @@ What can you say about the quality of your test statistics considering the value
 power?
 
 ```{r}
-fun <- function(a){
+set.seed(123)
+ce <- function(a, plot=FALSE){
   ## step (a)
   n <- 366
   b <- rnorm(n, mean=183, sd = 10)
@@ -174,27 +181,47 @@ fun <- function(a){
     t <- max(0,t)
   })
   data15 <- data.frame(Day_of_year=X,Draft_No=Y)
-  
+  if(plot){
+    plot(data15)
+  }
   ## step (b)
   stat <- permutation_test(B=200, data15)
   
   stat0 <- stats(data15,1:n)
-  return(c( stat0 ,mean(abs(stat)>=abs(stat0)) ))
+  re = data.frame( stat0 ,mean(abs(stat)>=abs(stat0)) )
+  options(digits = 5)
+  colnames(re) <- c("test_statistic","p_value")
+  return(re)
 }
 
-fun(a=0.1)
+ce(a=0.1, plot=TRUE)
+ce(a=10, TRUE)
 ```
-Since the p-value here is still larger than 0.05 (even closer), so we cannot reject the null hypothesis directly.
+Since the p-values here are smaller than 0.05 and test-statistics are larger than 0, so we can reject the null hypothesis directly. Obviously, the data is non-random.
 
 ```{r echo=F}
 ## step (c)
-result <- sapply(seq(0.2,10,0.1), fun)
-result<- data.frame(alpha=seq(0.2,10,0.1), p_value=result[2,])
-ggplot(data = result,aes(x=alpha,y=p_value))+
-  geom_line()
+b <- c()
+a <- seq(0.2,10,0.1)
+for (i in 1:length(a)) {
+  re = ce(a[i])
+  b[i] <- re$test_statistic
+}
+result <- data.frame(alpha=a, statistic=b)
+ggplot(data = result,aes(x=alpha,y=statistic))+
+  geom_point()
 ```
 
-Based on the formula, $\alpha$ can represent the impact strongness from X=Day_of_year to Y=Draft_No. According to the plot above, it seems that when $\alpha$ is larger, our test statistics would be more efficient to reject our null hypothesis (non-random), which is reasonable. 
+Based on the plot of alpha and test-statistic, we know that the test statistic we use is very strong. It expresses the non-randomness of our data and tends to 1.
+
+
+
+
+
+
+
+
+
 
 \newpage
 # Question 2: Bootstrap, jackknife and confidence intervals
